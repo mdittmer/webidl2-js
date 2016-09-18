@@ -1,0 +1,29 @@
+{
+  "name": "webidl2-js",
+  "version": "0.0.1",
+  "description": "A parse for relaxed Web IDL 2. This parser originally ffollowed the draft specification and has since been extended to afford common deviations from the spec.",
+  "main": "dist/parser.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "deploy": "node src/parser.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mdittmer/webidl2-js.git"
+  },
+  "keywords": [
+    "javascript"
+  ],
+  "author": "Mark Dittmer",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/mdittmer/webidl2-js/issues"
+  },
+  "homepage": "https://github.com/mdittmer/webidl2-js#readme",
+  "eslintConfig": {
+    "extends": "google"
+  },
+  "dependencies": {
+    "parse-js": "git://github.com/mdittmer/parse-js.git"
+  }
+}
