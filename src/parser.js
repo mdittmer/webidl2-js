@@ -340,8 +340,8 @@ parser.grammar = {
 
 function keySort(keys, a, b) {
   var key = '';
-  for (var i = 0; i < keys.length &&
-      (a[key] === undefined || b[key] === undefined); i++) {
+  for ( var i = 0; i < keys.length && (a[key] === undefined ||
+                                       b[key] === undefined); i++ ) {
     key = keys[i];
   }
   return ~~(a[key] < b[key]);
@@ -553,6 +553,7 @@ parser.addActions(
     return v === null ? null : v[1];
   },
   function ExtendedAttributeList(v) {
+    if ( v === null ) return null;
     return v.sort(sort);
   },
   function ExtendedAttribute(v) {
