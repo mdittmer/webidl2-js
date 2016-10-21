@@ -344,7 +344,9 @@ function keySort(keys, a, b) {
                                        b[key] === undefined); i++ ) {
     key = keys[i];
   }
-  return ~~(a[key] < b[key]);
+  if (a[key] < b[key]) return -1;
+  else if (a[key] > b[key]) return 1;
+  return 0;
 }
 var sort = keySort.bind(this, ['name', 'implementer', 'type_']);
 
