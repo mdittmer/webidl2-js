@@ -338,6 +338,16 @@ parser.grammar = {
   IdentifierOrStringList: tplus(sym('IdentifierOrString'), ','),
 };
 
+function keySort(keys, a, b) {
+  var key = '';
+  for (var i = 0; i < keys.length &&
+      (a[key] === undefined || b[key] === undefined); i++) {
+    key = keys[i];
+  }
+  return ~~(a[key] < b[key]);
+}
+var sort = keySort.bind(this, ['name', 'implementer', 'type_']);
+
 parser.addActions(
   function identifier(v) {
     return (v[0] || '') + v[1] + v[2];
@@ -375,7 +385,7 @@ parser.addActions(
       if ( attrsAndMember[0] !== null )
         attrsAndMember[1].attrs = attrsAndMember[0];
       return attrsAndMember[1];
-    });
+    }).sort(sort);
   },
   function Partial(v) {
     v[1].isPartial = true;
@@ -398,7 +408,7 @@ parser.addActions(
       if ( attrsAndMember[0] !== null )
         attrsAndMember[1].attrs = attrsAndMember[0];
       return attrsAndMember[1];
-    });
+    }).sort(sort);
   },
   function DictionaryMember(v) {
     var ret = { type: v[1], name: v[2] };
@@ -421,7 +431,7 @@ parser.addActions(
       if ( attrsAndMember[0] !== null )
         attrsAndMember[1].attrs = attrsAndMember[0];
       return attrsAndMember[1];
-    });
+    }).sort(sort);
   },
   function Const(v) {
     return { isConst: true, type: v[1], name: v[2], value: v[4] };
@@ -541,6 +551,9 @@ parser.addActions(
   },
   function OptionalType(v) {
     return v === null ? null : v[1];
+  },
+  function ExtendedAttributeList(v) {
+    return v.sort(sort);
   },
   function ExtendedAttribute(v) {
     v.type_ = 'extendedattribute';
