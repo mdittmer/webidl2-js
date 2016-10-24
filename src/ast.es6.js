@@ -18,15 +18,6 @@
 
 const _ = require('lodash');
 
-function fromJSON(type, json) {
-  return type.fromJSON(type.jsonKeys ? _.pick(json, type.jsonKeys) : json);
-}
-
-function toJSON(type, o) {
-  const values = type.jsonKeys ? _.pick(o, type.jsonKeys) : o;
-  return Object.assign({type_: type.name}, values);
-}
-
 let registry = {};
 function register(type) {
   registry[type.name] = type;
@@ -35,22 +26,44 @@ function lookup(name) {
   return registry[name];
 }
 
+function fromJSON(json, Ctor) {
+  const type = typeof json;
+  if (json === null || type === 'boolean' || type === 'string' ||
+      type === 'function' || type === 'number')
+  return json;
+
+  if (Array.isArray(json)) {
+    return json.map(datum => fromJSON(datum, Ctor));
+  } else if (json.type_) {
+    const TypedCtor = lookup(json.type_) || Ctor;
+    const values = fromJSON(_.omit(json, ['type_']), Ctor);
+    return TypedCtor.fromJSON(values);
+  } else {
+    return _.mapValues(json, value => fromJSON(value, Ctor));
+  }
+}
+
+function toJSON(o) {
+  const type = typeof o;
+  if (o === null || type === 'boolean' || type === 'string' ||
+      type === 'function' || type === 'number')
+    return o;
+
+  if (o.toJSON) return o.toJSON();
+
+  const Ctor = o.constructor;
+  let json = Ctor && Ctor.jsonKeys ? _.pick(o, Ctor.jsonKeys) : o;
+  json = _.mapValues(json, value => toJSON(value));
+
+  return Object.assign({type_: Ctor.name}, json);
+}
+
 class Base {
   static fromJSON(json) {
-    const type = typeof json;
-    if (json === null || type === 'boolean' || type === 'string' ||
-        type === 'function' || type === 'number')
-      return json;
-
-    if (Array.isArray(json)) {
-      return json.map(i => fromJSON(Base, i));
-    } else if (json.type_) {
-      const type = lookup(json.type_);
-      if (!type) throw new Error(`Unknown type: "${json.type_}"`);
-      return fromJSON(type, json);
-    } else {
-      return _.mapValues(json, value => fromJSON(Base, value));
-    }
+    const Ctor = this;
+    let ret = new Ctor();
+    ret.init(json);
+    return ret;
   }
 
   constructor(opts) {
@@ -59,6 +72,17 @@ class Base {
 
   init(opts) {
     Object.assign(this, opts);
+  }
+
+  toJSON() {
+    const Ctor = this.constructor;
+    let json = Ctor && Ctor.jsonKeys ? _.pick(this, Ctor.jsonKeys) : this;
+    json = _.mapValues(
+        json,
+        value => toJSON(value)
+    );
+
+    return Object.assign({type_: Ctor.name}, json);
   }
 }
 

@@ -412,7 +412,7 @@ parser.addActions(
       ast.Dictionary.fromJSON({
         inheritsFrom: v[2],
         name: v[1],
-        members: v[4]
+        members: v[4],
       });
   },
   function DictionaryMembers(v) {
