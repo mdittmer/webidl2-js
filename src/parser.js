@@ -17,6 +17,7 @@
 'use strict';
 
 var parse = require('parse-js');
+var ast = require('./ast.es6.js');
 
 // Construct parser and store tokenized factories.
 // TODO: Tokenized factories should be accessible without constructing
@@ -338,17 +339,23 @@ parser.grammar = {
   IdentifierOrStringList: tplus(sym('IdentifierOrString'), ','),
 };
 
-function keySort(keys, a, b) {
-  var key = '';
-  for ( var i = 0; i < keys.length && (a[key] === undefined ||
-                                       b[key] === undefined); i++ ) {
-    key = keys[i];
+function fSort(fs, a, b) {
+  var aValue;
+  var bValue;
+  for ( var i = 0; i < fs.length i++ ) {
+    aValue = fs[i](a);
+    bValue = fs[i](b);
+    if (aValue !== undefined && bValue !== undefined) break;
   }
-  if (a[key] < b[key]) return -1;
-  else if (a[key] > b[key]) return 1;
+  if (aValue < bValue) return -1;
+  else if (aValue > bValue) return 1;
   return 0;
 }
-var sort = keySort.bind(this, ['name', 'implementer', 'type_']);
+var sort = fSort.bind(this, [
+  function(v) { return v.name; },
+  function(v) { return v.implementer; },
+  function(v) { return v.constructor.name; },
+]);
 
 parser.addActions(
   function identifier(v) {
@@ -366,20 +373,20 @@ parser.addActions(
     });
   },
   function Callback(v) {
-    v[1].type_ = 'callback';
-    return v[1];
+    return ast.Callback.fromJSON(v);
   },
   function InterfaceLike(v) {
+    var typeName = v[0].charAt(0).toUppercase() + v[0].substr(1);
     return v[2] === null ?
-      { type_: v[0], name: v[1], members: v[4] } :
-    { type_: v[0], inheritsFrom: v[2], name: v[1], members: v[4] };
+      ast[typeName].fromJSON({ name: v[1], members: v[4] }) :
+      ast[typeName].fromJSON({ inheritsFrom: v[2], name: v[1], members: v[4] });
   },
   function CallbackRest(v) {
     return v[4].length === 0 ? { name: v[0], returnType: v[2] } :
     { name: v[0], returnType: v[2], args: v[4] };
   },
   function Namespace(v) {
-    return { type_: 'namespace', name: v[1], members: v[3] };
+    return ast.Namespace.fromJSON({ name: v[1], members: v[3] });
   },
   function NamespaceMembers(v) {
     if ( v === null ) return null;
@@ -394,15 +401,19 @@ parser.addActions(
     return v[1];
   },
   function PartialInterface(v) {
-    return { type_: 'partialinterface', name: v[1], members: v[3] };
+    return ast.PartialInterface.fromJSON({ name: v[1], members: v[3] });
   },
   function PartialDictionary(v) {
-    return { type_: 'dictionary', name: v[1], members: v[3] };
+    return ast.Dictionary.fromJSON({ name: v[1], members: v[3] });
   },
   function Dictionary(v) {
     return v[2] === null ?
-      { type_: 'dictionary', name: v[1], members: v[4] } :
-    { type_: 'dictionary', inheritsFrom: v[2], name: v[1], members: v[4] };
+      ast.Dictionary.fromJSON({ name: v[1], members: v[4] }) :
+      ast.Dictionary.fromJSON({
+        inheritsFrom: v[2],
+        name: v[1],
+        members: v[4]
+      });
   },
   function DictionaryMembers(v) {
     if ( v === null ) return null;
@@ -419,13 +430,13 @@ parser.addActions(
     return ret;
   },
   function Enum(v) {
-    return { type_: 'enum', name: v[1], value: v[3] };
+    return ast.Enum.fromJSON({ name: v[1], value: v[3] });
   },
   function Typedef(v) {
-    return { type_: 'typedef', type: v[1], name: v[2] };
+    return ast.Typedef.fromJSON({ type: v[1], name: v[2] });
   },
   function ImplementsStatement(v) {
-    return { type_: 'implements', implementer: v[0], implemented: v[2] };
+    return ast.Implements.fromJSON({ implementer: v[0], implemented: v[2] });
   },
   function InterfaceMembers(v) {
     if ( v === null ) return null;
@@ -447,21 +458,19 @@ parser.addActions(
     return v;
   },
   function Serializer(v) {
-    v[1].type_ = 'serializer';
-    return v[1];
+    return ast.Serializer.fromJSON(v[1]);
   },
   function Stringifier(v) {
-    if ( v[1] === ';' ) return { type_: 'stringifier' };
-    v[1].type_ = 'stringifier';
-    return v[1];
+    if ( v[1] === ';' ) return ast.Stringifier.fromJSON({});
+    return ast.Stringifier.fromJSON(v[1]);
   },
   function StaticMember(v) {
     v[1].isStatic = true;
     return v[1];
   },
   function Iterable(v) {
-    return v[3] === null ? { type_: 'iterable', valueType: v[2] } :
-    { type_: 'iterable', keyType: v[2], valueType: v[3] };
+    return v[3] === null ? ast.Iterable.fromJSON({ valueType: v[2] }) :
+      ast.Iterable.fromJSON({ keyType: v[2], valueType: v[3] });
   },
   function Member(v) {
     if ( v[0] !== null ) v[2].isInherited = true;
@@ -492,13 +501,13 @@ parser.addActions(
     return { arrayPattern: v[1] };
   },
   function AttributeRest(v) {
-    return { type_: 'attribute', type: v[1], name: v[2] };
+    return ast.Attribute.fromJSON({ type: v[1], name: v[2] });
   },
   function MaplikeRest(v) {
-    return { type_: 'maplike', keyType: v[2], valueType: v[4] };
+    return ast.Maplike.fromJSON({ keyType: v[2], valueType: v[4] });
   },
   function SetlikeRest(v) {
-    return { type_: 'setlike', type: v[2] };
+    return ast.Setlike.fromJSON({ type: v[2] });
   },
   function Argument(v) {
     if ( v[0] ) v[1].attrs = v[0];
@@ -520,8 +529,8 @@ parser.addActions(
     return v.join('');
   },
   function UnionType(v) {
-    return v[3] === null ? { type_: 'uniontype', types: v[1] } :
-    { type_: 'uniontype', types: v[1], params: v[3] };
+    return v[3] === null ? ast.Uniontype.fromJSON({ types: v[1] }) :
+      ast.Uniontype.fromJSON({ types: v[1], params: v[3] });
   },
   function ParameterizedType(v) {
     if ( v[0].params ) v[0].params.push(v[2]);
@@ -559,8 +568,7 @@ parser.addActions(
     return v.sort(sort);
   },
   function ExtendedAttribute(v) {
-    v.type_ = 'extendedattribute';
-    return v;
+    return ast.ExtendedAttribute.fromJSON(v);
   },
   function ExtendedAttributeIdentList(v) {
     // E.g., "foo=(a, b)"
