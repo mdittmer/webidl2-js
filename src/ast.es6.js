@@ -18,6 +18,8 @@
 
 const _ = require('lodash');
 const jsonModule = require('./JSON.es6.js');
+const registryModule = require('./registry.es6.js');
+const defaultRegistry = registryModule.registry;
 
 class Base {
   static fromJSON(json, registry) {
@@ -50,87 +52,87 @@ class Base {
 class Callback extends Base {
   static get name() { return 'Callback'; }
 }
-register(Callback);
+defaultRegistry.register(Callback);
 
 class Exception extends Base {
   static get name() { return 'Exception'; }
 }
-register(Exception);
+defaultRegistry.register(Exception);
 
 class Interface extends Base {
   static get name() { return 'Interface'; }
 }
-register(Interface);
+defaultRegistry.register(Interface);
 
 class Namespace extends Base {
   static get name() { return 'Namespace'; }
 }
-register(Namespace);
+defaultRegistry.register(Namespace);
 
 class PartialInterface extends Base {
   static get name() { return 'PartialInterface'; }
 }
-register(PartialInterface);
+defaultRegistry.register(PartialInterface);
 
 class Dictionary extends Base {
   static get name() { return 'Dictionary'; }
 }
-register(Dictionary);
+defaultRegistry.register(Dictionary);
 
 class Enum extends Base {
   static get name() { return 'Enum'; }
 }
-register(Enum);
+defaultRegistry.register(Enum);
 
 class Typedef extends Base {
   static get name() { return 'Typedef'; }
 }
-register(Typedef);
+defaultRegistry.register(Typedef);
 
 class Implements extends Base {
   static get name() { return 'Implements'; }
 }
-register(Implements);
+defaultRegistry.register(Implements);
 
 class Serializer extends Base {
   static get name() { return 'Serializer'; }
 }
-register(Serializer);
+defaultRegistry.register(Serializer);
 
 class Stringifier extends Base {
   static get name() { return 'Stringifier'; }
 }
-register(Stringifier);
+defaultRegistry.register(Stringifier);
 
 class Iterable extends Base {
   static get name() { return 'Iterable'; }
 }
-register(Iterable);
+defaultRegistry.register(Iterable);
 
 class Attribute extends Base {
   static get name() { return 'Attribute'; }
 }
-register(Attribute);
+defaultRegistry.register(Attribute);
 
 class MapLike extends Base {
   static get name() { return 'MapLike'; }
 }
-register(MapLike);
+defaultRegistry.register(MapLike);
 
 class SetLike extends Base {
   static get name() { return 'SetLike'; }
 }
-register(SetLike);
+defaultRegistry.register(SetLike);
 
 class UnionType extends Base {
   static get name() { return 'UnionType'; }
 }
-register(UnionType);
+defaultRegistry.register(UnionType);
 
 class ExtendedAttribute extends Base {
   static get name() { return 'ExtendedAttribute'; }
 }
-register(ExtendedAttribute);
+defaultRegistry.register(ExtendedAttribute);
 
 module.exports = {
   Callback,
