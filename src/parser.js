@@ -373,7 +373,7 @@ parser.addActions(
     });
   },
   function Callback(v) {
-    return ast.Callback.fromJSON(v);
+    return ast.Callback.fromJSON(v[1]);
   },
   function InterfaceLike(v) {
     var typeName = v[0].charAt(0).toUpperCase() + v[0].substr(1);
