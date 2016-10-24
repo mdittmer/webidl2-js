@@ -57,3 +57,5 @@ function toJSON(o, registry) {
 
   return Object.assign({type_: Ctor.name}, json);
 }
+
+module.exports = {fromJSON, toJSON};
