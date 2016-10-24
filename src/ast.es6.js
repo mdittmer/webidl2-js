@@ -44,7 +44,7 @@ class Base {
       if (!type) throw new Error(`Unknown type: "${json.type_}"`);
       return fromJSON(type, json);
     } else {
-      return _.forOwn(json, (value, key) => fromJSON(Base, value));
+      return _.mapValues(json, value => fromJSON(Base, value));
     }
   }
 
