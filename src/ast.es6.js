@@ -17,51 +17,10 @@
 'use strict';
 
 const _ = require('lodash');
-
-let registry = {};
-function register(type) {
-  registry[type.name] = type;
-}
-function lookup(name) {
-  return registry[name];
-}
-
-function fromJSON(json, Ctor) {
-  const type = typeof json;
-  if (json === null || type === 'boolean' || type === 'string' ||
-      type === 'function' || type === 'number')
-  return json;
-
-  if (Array.isArray(json)) {
-    return json.map(datum => fromJSON(datum, Ctor));
-  } else if (json.type_) {
-    const TypedCtor = lookup(json.type_) || Ctor;
-    const values = fromJSON(_.omit(json, ['type_']), Ctor);
-    return TypedCtor.fromJSON(values);
-  } else {
-    return _.mapValues(json, value => fromJSON(value, Ctor));
-  }
-}
-
-function toJSON(o) {
-  const type = typeof o;
-  if (o === null || type === 'boolean' || type === 'string' ||
-      type === 'function' || type === 'number')
-    return o;
-
-  if (o.toJSON) return o.toJSON();
-
-  if (o.constructor === Object || o.constructor === Array) return _.clone(o);
-
-  const Ctor = o.constructor;
-  let json = Ctor && Ctor.jsonKeys ? _.pick(o, Ctor.jsonKeys) : o;
-  json = _.mapValues(json, value => toJSON(value));
-
-  return Object.assign({type_: Ctor.name}, json);
-}
+const jsonModule = require('./JSON.es6.js');
 
 class Base {
-  static fromJSON(json) {
+  static fromJSON(json, registry) {
     const Ctor = this;
     let ret = new Ctor();
     ret.init(json);
@@ -76,12 +35,12 @@ class Base {
     Object.assign(this, opts);
   }
 
-  toJSON() {
+  toJSON(registry) {
     const Ctor = this.constructor;
     let json = Ctor && Ctor.jsonKeys ? _.pick(this, Ctor.jsonKeys) : this;
     json = _.mapValues(
         json,
-        value => toJSON(value)
+        value => jsonModule.toJSON(value, registry)
     );
 
     return Object.assign({type_: Ctor.name}, json);

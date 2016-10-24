@@ -591,4 +591,14 @@ parser.addActions(
   }
 );
 
-module.exports = parser;
+// Attach exported modules/types to module exports.
+var DB = require('./DB.es6.js');
+var Visitor = require('./Visitor.es6.js');
+var VisitorGenerator = require('./VisitorGenerator.es6.js');
+module.exports = {
+  parser: parser,
+  ast: ast,
+  DB: DB,
+  Visitor: Visitor,
+  VisitorGenerator: VisitorGenerator,
+};
