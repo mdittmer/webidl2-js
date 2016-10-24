@@ -342,7 +342,7 @@ parser.grammar = {
 function fSort(fs, a, b) {
   var aValue;
   var bValue;
-  for ( var i = 0; i < fs.length i++ ) {
+  for ( var i = 0; i < fs.length; i++ ) {
     aValue = fs[i](a);
     bValue = fs[i](b);
     if (aValue !== undefined && bValue !== undefined) break;
