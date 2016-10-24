@@ -51,6 +51,8 @@ function toJSON(o) {
 
   if (o.toJSON) return o.toJSON();
 
+  if (o.constructor === Object || o.constructor === Array) return _.clone(o);
+
   const Ctor = o.constructor;
   let json = Ctor && Ctor.jsonKeys ? _.pick(o, Ctor.jsonKeys) : o;
   json = _.mapValues(json, value => toJSON(value));
