@@ -24,7 +24,7 @@ function fromJSON(type, json) {
 
 function toJSON(type, o) {
   const values = type.jsonKeys ? _.pick(o, type.jsonKeys) : o;
-  return Object.assign({type: type.name}, values);
+  return Object.assign({type_: type.name}, values);
 }
 
 let registry = {};
@@ -37,6 +37,11 @@ function lookup(name) {
 
 class Base {
   static fromJSON(json) {
+    const type = typeof json;
+    if (json === null || type === 'boolean' || type === 'string' ||
+        type === 'function' || type === 'number')
+      return json;
+
     if (Array.isArray(json)) {
       return json.map(i => fromJSON(Base, i));
     } else if (json.type_) {

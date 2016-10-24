@@ -376,7 +376,7 @@ parser.addActions(
     return ast.Callback.fromJSON(v);
   },
   function InterfaceLike(v) {
-    var typeName = v[0].charAt(0).toUppercase() + v[0].substr(1);
+    var typeName = v[0].charAt(0).toUpperCase() + v[0].substr(1);
     return v[2] === null ?
       ast[typeName].fromJSON({ name: v[1], members: v[4] }) :
       ast[typeName].fromJSON({ inheritsFrom: v[2], name: v[1], members: v[4] });
@@ -504,10 +504,10 @@ parser.addActions(
     return ast.Attribute.fromJSON({ type: v[1], name: v[2] });
   },
   function MaplikeRest(v) {
-    return ast.Maplike.fromJSON({ keyType: v[2], valueType: v[4] });
+    return ast.MapLike.fromJSON({ keyType: v[2], valueType: v[4] });
   },
   function SetlikeRest(v) {
-    return ast.Setlike.fromJSON({ type: v[2] });
+    return ast.SetLike.fromJSON({ type: v[2] });
   },
   function Argument(v) {
     if ( v[0] ) v[1].attrs = v[0];
@@ -529,8 +529,8 @@ parser.addActions(
     return v.join('');
   },
   function UnionType(v) {
-    return v[3] === null ? ast.Uniontype.fromJSON({ types: v[1] }) :
-      ast.Uniontype.fromJSON({ types: v[1], params: v[3] });
+    return v[3] === null ? ast.UnionType.fromJSON({ types: v[1] }) :
+      ast.UnionType.fromJSON({ types: v[1], params: v[3] });
   },
   function ParameterizedType(v) {
     if ( v[0].params ) v[0].params.push(v[2]);
