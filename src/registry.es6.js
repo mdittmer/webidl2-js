@@ -32,6 +32,6 @@ const registry = new Registry();
 module.exports = {
   Registry,
   registry,
-  register: registry.register,
-  lookup: registry.lookup,
+  register: registry.register.bind(registry),
+  lookup: registry.lookup.bind(registry),
 };
