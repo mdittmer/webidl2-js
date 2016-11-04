@@ -77,6 +77,12 @@ class DB {
     return this.idx.find(key, value);
   }
 
+  select(callback) {
+    for (const datum of this.data) {
+      callback(datum);
+    }
+  }
+
   addToIndex(key, data) {
     if (!this.idx.hasIndex(key)) this.idx.addIndex(key);
     this.idx.put(key, data);
