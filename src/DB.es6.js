@@ -16,6 +16,8 @@
  */
 'use strict';
 
+const registryModule = require('./registry.es6.js');
+
 class Indexer {
   constructor(opts) {
     this.init(opts || {});
@@ -49,10 +51,14 @@ class Indexer {
 
 class DB {
   static fromJSON(json, opts) {
-    let db = new DB(opts);
+    const dbOpts = Object.assign({registry: registryModule.registry}, opts);
+    const registry = dbOpts.registry;
+    const db = new DB(dbOpts);
+
     for (const item of json) {
-      db.put(item);
+      db.put(registry.loadFromJSON(item));
     }
+
     return db;
   }
 
