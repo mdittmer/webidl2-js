@@ -82,3 +82,5 @@ class DB {
     this.idx.put(key, data);
   }
 }
+
+module.exports = DB;
