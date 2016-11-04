@@ -23,8 +23,9 @@ const defaultRegistry = registryModule.registry;
 
 class Base {
   static fromJSON(json, registry) {
-    const Ctor = this;
-    let ret = new Ctor();
+    registry = registry || defaultRegistry;
+    let ret = new registry[json.type_]();
+    delete json.type_;
     ret.init(json);
     return ret;
   }
