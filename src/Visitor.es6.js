@@ -51,3 +51,5 @@ class Visitor {
     _.forOwn(root, node => this.visitTree(node));
   }
 }
+
+module.exports = Visitor;

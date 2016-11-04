@@ -18,13 +18,14 @@
 
 const _ = require('lodash');
 const Visitor = require('./Visitor.es6.js');
+const registryModule = require('./registry.es6.js');
 
 class VisitorGenerator {
   constructor(registry) {
-    this.registry = registry;
+    this.registry = registry || registryModule.registry;
   }
 
-  generate(Ctor, registry) {
+  generate(Ctor) {
     const visit = Ctor.prototype.visit;
     let types = [];
 
@@ -45,9 +46,9 @@ class VisitorGenerator {
 
     return new Visitor({
       shouldVisitTree: Visitor.trueF,
+      registry: this.registry,
       shouldVisitNode,
       visit,
-      registry,
     });
   }
 }

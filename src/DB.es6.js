@@ -48,6 +48,14 @@ class Indexer {
 }
 
 class DB {
+  static fromJSON(json, opts) {
+    let db = new DB(opts);
+    for (const item of json) {
+      db.put(item);
+    }
+    return db;
+  }
+
   constructor(opts) {
     this.init(opts || {});
   }
