@@ -25,6 +25,15 @@ class Registry {
   lookup(name) {
     return this[name] || null;
   }
+
+  loadFromJSON(json) {
+    const Ctor = this[json.type_];
+    delete json.type_;
+    if (Ctor.fromJSON) return Ctor.fromJSON(json, this);
+    let ret = new Ctor();
+    ret.init(json);
+    return ret;
+  }
 }
 
 const registry = new Registry();
