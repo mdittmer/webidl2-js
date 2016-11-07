@@ -24,7 +24,7 @@ function fromJSON(json, registry, Ctor) {
   const type = typeof json;
   if (json === null || type === 'boolean' || type === 'string' ||
       type === 'function' || type === 'number')
-  return json;
+    return json;
 
   if (Array.isArray(json)) {
     return json.map(datum => fromJSON(datum, registry, Ctor));

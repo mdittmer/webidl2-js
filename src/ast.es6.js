@@ -23,10 +23,7 @@ const defaultRegistry = registryModule.registry;
 
 class Base {
   static fromJSON(json, registry) {
-    const Ctor = this;
-    let ret = new Ctor();
-    ret.init(json);
-    return ret;
+    return jsonModule.fromJSON(json, registry, this);
   }
 
   constructor(opts) {
