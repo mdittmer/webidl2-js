@@ -24,14 +24,20 @@ function fromJSON(json, registry, Ctor) {
   const type = typeof json;
   if (json === null || type === 'boolean' || type === 'string' ||
       type === 'function' || type === 'number')
-  return json;
+    return json;
 
   if (Array.isArray(json)) {
     return json.map(datum => fromJSON(datum, registry, Ctor));
   } else if (json.type_) {
     const TypedCtor = (registry || defaultRegistry).lookup(json.type_) || Ctor;
     const values = fromJSON(_.omit(json, ['type_']), registry, Ctor);
-    return TypedCtor.fromJSON(values, registry);
+    if (TypedCtor.fromJSON) return TypedCtor.fromJSON(values, registry);
+    if (TypedCtor.prototype.init) {
+      const ret = new Ctor();
+      ret.init(json);
+      return ret;
+    }
+    throw new Error(`Found constructor registered as "${json.type_}", but no ${json.type_}.fromJSON(json) or ${json.type_}.prototype.init(json)`);
   } else {
     return _.mapValues(json, value => fromJSON(value, registry, Ctor));
   }
@@ -55,7 +61,7 @@ function toJSON(o, registry) {
   let json = Ctor && Ctor.jsonKeys ? _.pick(o, Ctor.jsonKeys) : o;
   json = _.mapValues(json, value => toJSON(value, registry));
 
-  return Object.assign({type_: Ctor.name}, json);
+  return Object.assign(Ctor === Object ? {} : {type_: Ctor.name}, json);
 }
 
 module.exports = {fromJSON, toJSON};

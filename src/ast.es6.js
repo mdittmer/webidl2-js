@@ -152,4 +152,5 @@ module.exports = {
   SetLike,
   UnionType,
   ExtendedAttribute,
+  registry: defaultRegistry,
 };
