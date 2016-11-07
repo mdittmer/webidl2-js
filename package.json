@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "lodash": "^4.16.4",
-    "parse-js": "git://github.com/mdittmer/parse-js.git"
+    "parse-js": "git://github.com/mdittmer/parse-js.git",
+    "serialize-js": "git://github.com/mdittmer/serialize-js.git"
   }
 }

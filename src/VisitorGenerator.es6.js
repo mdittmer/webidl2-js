@@ -18,11 +18,12 @@
 
 const _ = require('lodash');
 const Visitor = require('./Visitor.es6.js');
-const registryModule = require('./registry.es6.js');
+const serialize = require('serialize-js');
+const defaultRegistry = serialize.registry;
 
 class VisitorGenerator {
   constructor(registry) {
-    this.registry = registry || registryModule.registry;
+    this.registry = registry || defaultRegistry;
   }
 
   generate(Ctor) {

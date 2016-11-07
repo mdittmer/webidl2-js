@@ -595,12 +595,10 @@ parser.addActions(
 var DB = require('./DB.es6.js');
 var Visitor = require('./Visitor.es6.js');
 var VisitorGenerator = require('./VisitorGenerator.es6.js');
-var jsonModule = require('./JSON.es6.js');
 module.exports = {
   parser: parser,
   ast: ast,
   DB: DB,
   Visitor: Visitor,
   VisitorGenerator: VisitorGenerator,
-  JSON: jsonModule,
 };

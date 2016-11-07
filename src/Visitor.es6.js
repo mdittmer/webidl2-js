@@ -17,8 +17,8 @@
 'use strict';
 
 const _ = require('lodash');
-const registryModule = require('./registry.es6.js');
-const defaultRegistry = registryModule.registry;
+const serialize = require('serialize-js');
+const defaultRegistry = serialize.registry;
 
 function noop() {}
 function trueF() { return true; }

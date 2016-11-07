@@ -16,10 +16,8 @@
  */
 'use strict';
 
-const _ = require('lodash');
-const jsonModule = require('./JSON.es6.js');
-const registryModule = require('./registry.es6.js');
-const defaultRegistry = registryModule.registry;
+const serialize = require('serialize-js');
+const defaultRegistry = serialize.registry;
 
 class Base {
   constructor(opts) {
