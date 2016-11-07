@@ -21,6 +21,7 @@ const registryModule = require('./registry.es6.js');
 const defaultRegistry = registryModule.registry;
 
 function clone(o, Ctor) {
+  console.assert(Ctor.prototype, `Expect Ctors to have prototypes`);
   console.assert(
     Ctor.prototype.clone || Ctor.prototype.init,
     `Expect cloneables to implement prototype.clone() or prototype.init()`
