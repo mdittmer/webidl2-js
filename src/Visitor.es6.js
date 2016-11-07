@@ -17,7 +17,7 @@
 'use strict';
 
 const _ = require('lodash');
-const serialize = require('serialize-js');
+const serialize = require('simple-serialization');
 const defaultRegistry = serialize.registry;
 
 function noop() {}

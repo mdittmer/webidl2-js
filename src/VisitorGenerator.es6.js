@@ -18,7 +18,7 @@
 
 const _ = require('lodash');
 const Visitor = require('./Visitor.es6.js');
-const serialize = require('serialize-js');
+const serialize = require('simple-serialization');
 const defaultRegistry = serialize.registry;
 
 class VisitorGenerator {

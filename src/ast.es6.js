@@ -16,7 +16,7 @@
  */
 'use strict';
 
-const serialize = require('serialize-js');
+const serialize = require('simple-serialization');
 const defaultRegistry = serialize.registry;
 
 class Base {
