@@ -22,30 +22,12 @@ const registryModule = require('./registry.es6.js');
 const defaultRegistry = registryModule.registry;
 
 class Base {
-  static fromJSON(json, registry) {
-    const Ctor = this;
-    let ret = new Ctor();
-    ret.init(json);
-    return ret;
-  }
-
   constructor(opts) {
     this.init(opts || {});
   }
 
   init(opts) {
     Object.assign(this, opts);
-  }
-
-  toJSON(registry) {
-    const Ctor = this.constructor;
-    let json = Ctor && Ctor.jsonKeys ? _.pick(this, Ctor.jsonKeys) : this;
-    json = _.mapValues(
-        json,
-        value => jsonModule.toJSON(value, registry)
-    );
-
-    return Object.assign({type_: Ctor.name}, json);
   }
 }
 

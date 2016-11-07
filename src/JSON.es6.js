@@ -20,6 +20,17 @@ const _ = require('lodash');
 const registryModule = require('./registry.es6.js');
 const defaultRegistry = registryModule.registry;
 
+function clone(o, Ctor) {
+  console.assert(
+    Ctor.prototype.clone || Ctor.prototype.init,
+    `Expect cloneables to implement prototype.clone() or prototype.init()`
+  );
+  if (o.clone) return o.clone();
+  const ret = new Ctor();
+  ret.init(o);
+  return ret;
+}
+
 function fromJSON(json, registry, Ctor) {
   const type = typeof json;
   if (json === null || type === 'boolean' || type === 'string' ||
@@ -32,11 +43,7 @@ function fromJSON(json, registry, Ctor) {
     const TypedCtor = (registry || defaultRegistry).lookup(json.type_) || Ctor;
     const values = fromJSON(_.omit(json, ['type_']), registry, Ctor);
     if (TypedCtor.fromJSON) return TypedCtor.fromJSON(values, registry);
-    if (TypedCtor.prototype.init) {
-      const ret = new Ctor();
-      ret.init(json);
-      return ret;
-    }
+    if (TypedCtor.prototype.init) return clone(json, Ctor);
     throw new Error(`Found constructor registered as "${json.type_}", but no ${json.type_}.fromJSON(json) or ${json.type_}.prototype.init(json)`);
   } else {
     return _.mapValues(json, value => fromJSON(value, registry, Ctor));
@@ -64,4 +71,4 @@ function toJSON(o, registry) {
   return Object.assign(Ctor === Object ? {} : {type_: Ctor.name}, json);
 }
 
-module.exports = {fromJSON, toJSON};
+module.exports = {clone, fromJSON, toJSON};
