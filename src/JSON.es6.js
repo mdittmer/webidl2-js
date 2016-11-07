@@ -42,9 +42,9 @@ function fromJSON(json, registry, Ctor) {
     return json.map(datum => fromJSON(datum, registry, Ctor));
   } else if (json.type_) {
     const TypedCtor = (registry || defaultRegistry).lookup(json.type_) || Ctor;
-    const values = fromJSON(_.omit(json, ['type_']), registry, Ctor);
+    const values = fromJSON(_.omit(json, ['type_']), registry, TypedCtor);
     if (TypedCtor.fromJSON) return TypedCtor.fromJSON(values, registry);
-    if (TypedCtor.prototype.init) return clone(json, Ctor);
+    if (TypedCtor.prototype.init) return clone(json, TypedCtor);
     throw new Error(`Found constructor registered as "${json.type_}", but no ${json.type_}.fromJSON(json) or ${json.type_}.prototype.init(json)`);
   } else {
     return _.mapValues(json, value => fromJSON(value, registry, Ctor));
