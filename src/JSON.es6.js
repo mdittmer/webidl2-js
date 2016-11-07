@@ -21,14 +21,13 @@ const registryModule = require('./registry.es6.js');
 const defaultRegistry = registryModule.registry;
 
 function clone(o, Ctor) {
-  console.assert(Ctor, `Expect Ctor`);
-  console.assert(Ctor.prototype, `Expect Ctors to have prototypes`);
+  const RealCtor = Ctor || o.constructor;
   console.assert(
-    Ctor.prototype.clone || Ctor.prototype.init,
+    RealCtor.prototype.clone || RealCtor.prototype.init,
     `Expect cloneables to implement prototype.clone() or prototype.init()`
   );
   if (o.clone) return o.clone();
-  const ret = new Ctor();
+  const ret = new RealCtor();
   ret.init(o);
   return ret;
 }
