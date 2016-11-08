@@ -42,7 +42,9 @@ class Base {
     return ret;
   }
 
-  concretize_(db) {}
+  concretize_(db) {
+    return this;
+  }
 
   canonicalize(db) {
     if (this.isCanonical_) return this;
@@ -70,7 +72,9 @@ class Base {
     return ret;
   }
 
-  canonicalize_(db) {}
+  canonicalize_(db) {
+    return this;
+  }
 }
 
 function concretizeInheritance(db) {
