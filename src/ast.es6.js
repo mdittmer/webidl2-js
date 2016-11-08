@@ -32,8 +32,13 @@ class Base {
   concretize(db) {
     if (this.isConcrete_) return this;
 
-    let ret = this.concretize_(db);
-
+    let ret;
+    try {
+      ret = this.concretize_(db);
+    } catch (e) {
+      console.warn(e);
+      ret = this;
+    }
     Object.defineProperty(ret, 'isConcrete_', {
       enumerable: false,
       value: true,
@@ -48,20 +53,23 @@ class Base {
 
   canonicalize(db) {
     if (this.isCanonical_) return this;
-    console.assert(this.isConcrete_, `Expect canonicalized to be concrete`);
+    if (!this.isConcrete_)
+      throw new Error(`Expect canonicalized to be concrete`);
 
-    let ret = this.canonicalize_(db);
+    let ret;
+    try {
+      ret = this.canonicalize_(db);
+    } catch (e) {
+      console.warn(e);
+      ret = this;
+    }
 
     if (ret.name) {
       const result = db.find('name', ret.name);
-      console.assert(
-        result.length === 1,
-        `Expect to find single entity after canonicalization`
-      );
-      console.assert(
-        result[0] === ret,
-        `Expect to find this entity after canonicalization`
-      );
+      if (result.length !== 1)
+        throw new Error(`Expect to find single entity after canonicalization`);
+      if (result[0] !== ret)
+        throw new Error(`Expect to find this entity after canonicalization`);
     }
 
     Object.defineProperty(ret, 'isCanonical_', {
@@ -81,9 +89,9 @@ function concretizeInheritance(db) {
   if (!this.inheritsFrom) return this;
 
   const result = db.find('name', this.inheritsFrom);
-  console.assert(
-    result.length === 1, `Expect to find single entity to inherit from`
-  );
+  if (result.length !== 1)
+    throw new Error(`Expect to find single entity to inherit from`);
+
   const inheritsFrom = result[0];
   inheritsFrom.concretize();
 
