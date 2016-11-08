@@ -18,7 +18,7 @@
 
 const serialize = require('simple-serialization');
 const defaultRegistry = serialize.registry;
-const jsonModule = require('./JSON.es6.js');
+const jsonModule = serialize.JSON;
 
 class Base {
   constructor(opts) {
