@@ -73,6 +73,12 @@ class DB {
     if (data.putTo) data.putTo(this);
   }
 
+  remove(data, filter) {
+    filter = filter || (item => item === data);
+    this.data = this.data.filter(filter);
+    if (data.removeFrom) data.removeFrom(this);
+  }
+
   find(key, value) {
     return this.idx.find(key, value);
   }

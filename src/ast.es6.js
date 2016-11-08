@@ -18,6 +18,7 @@
 
 const serialize = require('simple-serialization');
 const defaultRegistry = serialize.registry;
+const jsonModule = require('./JSON.es6.js');
 
 class Base {
   constructor(opts) {
@@ -27,6 +28,68 @@ class Base {
   init(opts) {
     Object.assign(this, opts);
   }
+
+  concretize(db) {
+    if (this.isConcrete_) return this;
+
+    let ret = this.concretize_();
+
+    Object.defineProperty(ret, 'isConcrete_', {
+      enumerable: false,
+      value: true,
+    });
+
+    return ret;
+  }
+
+  concretize_(db) {}
+
+  canonicalize(db) {
+    if (this.isCanonical_) return this;
+    console.assert(this.isConcrete_, `Expect canonicalized to be concrete`);
+
+    let ret = this.canonicalize_(db);
+
+    if (ret.name) {
+      const result = db.find('name', ret.name);
+      console.assert(
+        result.length === 1,
+        `Expect to find single entity after canonicalization`
+      );
+      console.assert(
+        result[0] === ret,
+        `Expect to find this entity after canonicalization`
+      );
+    }
+
+    Object.defineProperty(ret, 'isCanonical_', {
+      enumerable: false,
+      value: true,
+    });
+
+    return ret;
+  }
+
+  canonicalize_(db) {}
+}
+
+function concretizeInheritance(db) {
+  if (!this.inheritsFrom) return this;
+
+  const result = db.find('name', this.inheritsFrom);
+  console.assert(
+    result.length === 1, `Expect to find single entity to inherit from`
+  );
+  const inheritsFrom = result[0];
+  inheritsFrom.concretize();
+
+  for (const member of inheritsFrom.members) {
+    let newMember = jsonModule.deepClone(member);
+    if (!newMember.from) newMember.from = this.inheritsFrom;
+    this.members.push(newMember);
+  }
+
+  return this;
 }
 
 class Callback extends Base {
@@ -42,6 +105,7 @@ defaultRegistry.register(Exception);
 class Interface extends Base {
   static get name() { return 'Interface'; }
 }
+Interface.prototype.concretize_ = concretizeInheritance;
 defaultRegistry.register(Interface);
 
 class Namespace extends Base {
@@ -51,12 +115,42 @@ defaultRegistry.register(Namespace);
 
 class PartialInterface extends Base {
   static get name() { return 'PartialInterface'; }
+
+  concretize_(db) {
+    const result = db.find('name', this.name).filter(item => item !== this);
+
+    for (let member of this.members) {
+      member.from = this;
+    }
+
+    for (const partial of result) {
+      partial.concretize();
+      for (const member of partial.members) {
+        let newMember = jsonModule.deepClone(member);
+        if (!newMember.from) newMember.from = partial;
+        this.members.push(newMember);
+      }
+    }
+
+    return this;
+  }
+
+  canonicalize_(db) {
+    const result = db.find('name', this.name).filter(item => item !== this);
+
+    for (const partial of result) {
+      db.remove(partial);
+    }
+
+    return this;
+  }
 }
 defaultRegistry.register(PartialInterface);
 
 class Dictionary extends Base {
   static get name() { return 'Dictionary'; }
 }
+Dictionary.prototype.concretize_ = concretizeInheritance;
 defaultRegistry.register(Dictionary);
 
 class Enum extends Base {
