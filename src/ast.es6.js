@@ -32,7 +32,7 @@ class Base {
   concretize(db) {
     if (this.isConcrete_) return this;
 
-    let ret = this.concretize_();
+    let ret = this.concretize_(db);
 
     Object.defineProperty(ret, 'isConcrete_', {
       enumerable: false,
