@@ -23,6 +23,10 @@ class Indexer {
 
   init(opts) {
     this.by = {};
+    if (!opts.keys) return;
+    for (const key of opts.keys) {
+      this.addIndex(key);
+    }
   }
 
   hasIndex(name) {
@@ -41,9 +45,31 @@ class Indexer {
     this.by[name][data[name]].push(data);
   }
 
+  remove(name, data) {
+    if (data === undefined || data[name] === undefined) return;
+    console.assert(this.by[name]);
+    this.by[name][data[name]] = this.by[name][data[name]].filter(
+      item => item !== data
+    );
+  }
+
   find(key, value) {
     console.assert(this.by[key]);
     return this.by[key][value] ? this.by[key][value].slice() : [];
+  }
+
+  putToAll(data) {
+    const idxs = Object.getOwnPropertyNames(this.by);
+    for (const idx of idxs) {
+      this.put(idx, data);
+    }
+  }
+
+  removeFromAll(data) {
+    const idxs = Object.getOwnPropertyNames(this.by);
+    for (const idx of idxs) {
+      this.remove(idx, data);
+    }
   }
 }
 
@@ -65,17 +91,19 @@ class DB {
     this.name = opts.name || '';
     this.data = [];
     this.subs = {};
-    this.idx = new Indexer();
+    this.idx = new Indexer({keys: opts.idxKeys});
   }
 
   put(data) {
     this.data.push(data);
+    this.idx.putToAll(data);
     if (data.putTo) data.putTo(this);
   }
 
   remove(data, filter) {
     filter = filter || (item => item === data);
     this.data = this.data.filter(filter);
+    this.idx.removeFromAll(data);
     if (data.removeFrom) data.removeFrom(this);
   }
 
@@ -87,11 +115,6 @@ class DB {
     for (const datum of this.data) {
       callback(datum);
     }
-  }
-
-  addToIndex(key, data) {
-    if (!this.idx.hasIndex(key)) this.idx.addIndex(key);
-    this.idx.put(key, data);
   }
 }
 
