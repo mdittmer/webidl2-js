@@ -101,7 +101,7 @@ class DB {
   }
 
   remove(data, filter) {
-    filter = filter || (item => item === data);
+    filter = filter || (item => item !== data);
     this.data = this.data.filter(filter);
     this.idx.removeFromAll(data);
     if (data.removeFrom) data.removeFrom(this);
