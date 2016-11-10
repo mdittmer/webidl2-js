@@ -20,10 +20,6 @@ var ast = require('./ast.es6.js');
 var parse = require('parse-js');
 var serialize = require('simple-serialization');
 
-var fromJSON = function(json, Ctor) {
-  return serialize.JSON.fromJSON(json, serialize.registry, Ctor);
-};
-
 // Construct parser and store tokenized factories.
 // TODO: Tokenized factories should be accessible without constructing
 // a parser.
@@ -378,21 +374,20 @@ parser.addActions(
     });
   },
   function Callback(v) {
-    return fromJSON(v[1], ast.Callback);
+    return new ast.Callback(v[1]);
   },
   function InterfaceLike(v) {
     var typeName = v[0].charAt(0).toUpperCase() + v[0].substr(1);
     return v[2] === null ?
-      fromJSON({ name: v[1], members: v[4] }, ast[typeName]) :
-      fromJSON({ inheritsFrom: v[2], name: v[1], members: v[4] },
-               ast[typeName]);
+      new ast[typeName]({ name: v[1], members: v[4] }) :
+      new ast[typeName]({ inheritsFrom: v[2], name: v[1], members: v[4] });
   },
   function CallbackRest(v) {
     return v[4].length === 0 ? { name: v[0], returnType: v[2] } :
     { name: v[0], returnType: v[2], args: v[4] };
   },
   function Namespace(v) {
-    return fromJSON({ name: v[1], members: v[3] }, ast.Namespace);
+    return new ast.Namespace({ name: v[1], members: v[3] });
   },
   function NamespaceMembers(v) {
     if ( v === null ) return null;
@@ -407,19 +402,19 @@ parser.addActions(
     return v[1];
   },
   function PartialInterface(v) {
-    return fromJSON({ name: v[1], members: v[3] }, ast.PartialInterface);
+    return new ast.PartialInterface({ name: v[1], members: v[3] });
   },
   function PartialDictionary(v) {
-    return fromJSON({ name: v[1], members: v[3] }, ast.Dictionary);
+    return new ast.Dictionary({ name: v[1], members: v[3] });
   },
   function Dictionary(v) {
     return v[2] === null ?
-      fromJSON({ name: v[1], members: v[4] }, ast.Dictionary) :
-      fromJSON({
+      new ast.Dictionary({ name: v[1], members: v[4] }) :
+      new ast.Dictionary({
         inheritsFrom: v[2],
         name: v[1],
         members: v[4],
-      }, ast.Dictionary);
+      });
   },
   function DictionaryMembers(v) {
     if ( v === null ) return null;
@@ -436,13 +431,13 @@ parser.addActions(
     return ret;
   },
   function Enum(v) {
-    return fromJSON({ name: v[1], value: v[3] }, ast.Enum);
+    return new ast.Enum({ name: v[1], value: v[3] });
   },
   function Typedef(v) {
-    return fromJSON({ type: v[1], name: v[2] }, ast.Typedef);
+    return new ast.Typedef({ type: v[1], name: v[2] });
   },
   function ImplementsStatement(v) {
-    return fromJSON({ implementer: v[0], implemented: v[2] }, ast.Implements);
+    return new ast.Implements({ implementer: v[0], implemented: v[2] });
   },
   function InterfaceMembers(v) {
     if ( v === null ) return null;
@@ -464,19 +459,19 @@ parser.addActions(
     return v;
   },
   function Serializer(v) {
-    return fromJSON(v[1], ast.Serializer);
+    return new ast.Serializer(v[1]);
   },
   function Stringifier(v) {
-    if ( v[1] === ';' ) return fromJSON({}, ast.Stringifier);
-    return fromJSON(v[1], ast.Stringifier);
+    if ( v[1] === ';' ) return new ast.Stringifier({});
+    return new ast.Stringifier(v[1]);
   },
   function StaticMember(v) {
     v[1].isStatic = true;
     return v[1];
   },
   function Iterable(v) {
-    return v[3] === null ? fromJSON({ valueType: v[2] }, ast.Iterable) :
-      fromJSON({ keyType: v[2], valueType: v[3] }, ast.Iterable);
+    return v[3] === null ? new ast.Iterable({ valueType: v[2] }) :
+      new ast.Iterable({ keyType: v[2], valueType: v[3] });
   },
   function Member(v) {
     if ( v[0] !== null ) v[2].isInherited = true;
@@ -507,13 +502,13 @@ parser.addActions(
     return { arrayPattern: v[1] };
   },
   function AttributeRest(v) {
-    return fromJSON({ type: v[1], name: v[2] }, ast.Attribute);
+    return new ast.Attribute({ type: v[1], name: v[2] });
   },
   function MaplikeRest(v) {
-    return fromJSON({ keyType: v[2], valueType: v[4] }, ast.MapLike);
+    return new ast.MapLike({ keyType: v[2], valueType: v[4] });
   },
   function SetlikeRest(v) {
-    return fromJSON({ type: v[2] }, ast.SetLike);
+    return new ast.SetLike({ type: v[2] });
   },
   function Argument(v) {
     if ( v[0] ) v[1].attrs = v[0];
@@ -535,8 +530,8 @@ parser.addActions(
     return v.join('');
   },
   function UnionType(v) {
-    return v[3] === null ? fromJSON({ types: v[1] }, ast.UnionType) :
-      fromJSON({ types: v[1], params: v[3] }, ast.UnionType);
+    return v[3] === null ? new ast.UnionType({ types: v[1] }) :
+      new ast.UnionType({ types: v[1], params: v[3] });
   },
   function ParameterizedType(v) {
     if ( v[0].params ) v[0].params.push(v[2]);
@@ -574,7 +569,7 @@ parser.addActions(
     return v.sort(sort);
   },
   function ExtendedAttribute(v) {
-    return fromJSON(v, ast.ExtendedAttribute);
+    return new ast.ExtendedAttribute(v);
   },
   function ExtendedAttributeIdentList(v) {
     // E.g., "foo=(a, b)"
