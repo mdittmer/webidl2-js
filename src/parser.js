@@ -553,7 +553,7 @@ parser.addActions(
     if ( v[0] === 'nullable' ) return [ v[0], v[1][0] ].concat(v[1][1]);
     else                       return [ v[0] ].concat(v[1]);
     if ( v[1] ) return v[0].concat(v[1]);
-    return v[0];
+    return [ v[0] ];
   },
   function Nullable(v) {
     return 'nullable';
