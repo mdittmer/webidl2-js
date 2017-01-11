@@ -297,7 +297,7 @@ parser.grammar = {
   // NOTE: We support nesting of union types, though the standard does not.
   UnionMemberType: sym('Type'),
   NonUnionType: alt(sym('ParameterizedType'), sym('SimpleType')),
-  ParameterizedType: tseq(sym('SimpleType'), '<', sym('Type'), '>',
+  ParameterizedType: tseq(sym('SimpleType'), '<', tplus(sym('Type'), ','), '>',
                           sym('TypeSuffixes')),
   SimpleType: tseq(alt(sym('BuiltInTypeName'), sym('identifier')),
                    sym('TypeSuffixes')),
@@ -534,9 +534,9 @@ parser.addActions(
       new ast.UnionType({ types: v[1], params: v[3] });
   },
   function ParameterizedType(v) {
-    if ( v[0].params ) v[0].params.push(v[2]);
-    else               v[0].params = [ v[2] ];
-    if ( v[4] !== null ) v[0].params.push(v[4]);
+    if ( v[0].params ) v[0].params = v[0].params.concat(v[2]);
+    else               v[0].params = v[2];
+    if ( v[4] !== null ) v[0].params = v[0].params.concat(v[4]);
     return v[0];
   },
   function SimpleType(v) {
