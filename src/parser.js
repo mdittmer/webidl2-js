@@ -143,7 +143,9 @@ parser.grammar = {
                                 sym('NamespaceMember'))),
   // NOTE: Spec uses "ReturnType" below, instead of Type. Rely on semantic
   // actions to care about the difference.
-  NamespaceMember: sym('Operation'),
+  // TODO: Namespace members should only include Operation. Const added here
+  // to deal with Gecko's use of consts in "console" namespace.
+  NamespaceMember: alt(sym('Const'), sym('Operation')),
 
   // Partials.
   Partial: tseq('partial', sym('PartialDefinition')),
