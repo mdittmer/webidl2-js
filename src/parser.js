@@ -230,7 +230,13 @@ parser.grammar = {
   // ReadWriteSetlike: sym('SetlikeRest'),
 
   // Within interface members.
-  Specials: trepeat(alt('getter', 'setter', 'deleter', 'legacycaller')),
+  Specials: trepeat(alt('getter',
+                        'setter',
+                        // TODO: "creator" is a proprietary extension used by
+                        // Gecko.
+                        'creator',
+                        'deleter',
+                        'legacycaller')),
   OperationRest: tseq(optional(sym('identifier')), '(',
                       sym('ArgumentList'), ')', sym('SemiColon')),
   SerializerRest: alt(sym('SerializerRestOperation'),
