@@ -98,6 +98,8 @@ parser.grammar = {
         optional(
           str(seq(sym('Ee'), sym('opm'), sym('p09')))))),
       str(seq(sym('p09'), sym('Ee'), sym('opm'), sym('p09'))))))),
+  // TODO: This has been relaxed to parse identifiers like "__content" in
+  // Gecko's IDL. It should be /_?[A-Za-z][0-9A-Z_a-z-]*/.
   identifier: nodebug(seq(
     alt(sym('AZ'), sym('az'), sym('_09'), '_'),
     str(repeat(alt(sym('AZ'), sym('az'), sym('_09'), '_', '-'))))),
