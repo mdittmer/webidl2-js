@@ -99,8 +99,7 @@ parser.grammar = {
           str(seq(sym('Ee'), sym('opm'), sym('p09')))))),
       str(seq(sym('p09'), sym('Ee'), sym('opm'), sym('p09'))))))),
   identifier: nodebug(seq(
-    optional('_'),
-    alt(sym('AZ'), sym('az')),
+    alt(sym('AZ'), sym('az'), sym('_09'), '_'),
     str(repeat(alt(sym('AZ'), sym('az'), sym('_09'), '_', '-'))))),
   string: nodebug(seq1(1, '"', str(repeat(notChar('"'))), '"')),
 
@@ -360,7 +359,7 @@ var sort = fSort.bind(this, [
 
 parser.addActions(
   function identifier(v) {
-    return (v[0] || '') + v[1] + v[2];
+    return v[0] + v[1];
   },
   function START(v) {
     return v[1];
