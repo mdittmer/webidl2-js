@@ -16,599 +16,786 @@
  */
 'use strict';
 
-var ast = require('./ast.es6.js');
-var parse = require('parse-js');
-var serialize = require('simple-serialization');
+require('./parse.js');
+require('./tokenized.js');
+require('./ast.js');
 
-// Construct parser and store tokenized factories.
-// TODO: Tokenized factories should be accessible without constructing
-// a parser.
-var parser = new parse.TokenParserController();
-var tseq = parser.factories.tseq;
-var tseq1 = parser.factories.tseq1;
-var trepeat = parser.factories.trepeat;
-var tplus = parser.factories.tplus;
+// WebIDL parser.
 
-// Import parser factories.
-var fs = parser.factories;
-var alt = fs.alt;
-var anyChar = fs.anyChar;
-var copyInput = fs.copyInput;
-var debug = fs.debug;
-var literal = fs.literal;
-var literal_ic = fs.literal_ic;
-var log = fs.log;
-var lookahead = fs.lookahead;
-var nodebug = fs.nodebug;
-var noskip = fs.noskip;
-var not = fs.not;
-var notChar = fs.notChar;
-var notChars = fs.notChars;
-var optional = fs.optional;
-var pick = fs.pick;
-var plus = fs.plus;
-var plus0 = fs.plus0;
-var range = fs.range;
-var repeat = fs.repeat;
-var repeat0 = fs.repeat0;
-var seq = fs.seq;
-var seq1 = fs.seq1;
-var seqEven = fs.seqEven;
-var simpleAlt = fs.simpleAlt;
-var str = fs.str;
-var sym = fs.sym;
+foam.CLASS({
+  package: 'foam.webidl',
+  name: 'Parser',
 
-// Import parsers.
-var g = parse.grammar;
-var alphaChar = g.alphaChar;
-var alphaNumChar = g.alphaNumChar;
-var cStyleComment_ = g.cStyleComment_;
-var fail = g.fail;
-var multilineComment_ = g.multilineComment_;
-var singleLineComment_ = g.singleLineComment_;
-var whitespace_ = g.whitespace_;
-var wordChar = g.wordChar;
+  axioms: [
+    foam.pattern.Singleton.create(),
+  ],
 
-parser.grammar = {
-  // Common patterns.
-  _09: range('0', '9'),
-  r09: str(repeat(sym('_09'))),
-  p09: str(plus(sym('_09'))),
-  om: optional('-'),
-  opm: optional(alt('+', '-')),
-  Ee: alt('E', 'e'),
-  AZ: range('A', 'Z'),
-  az: range('a', 'z'),
+  requires: [
+    'foam.parse.ImperativeGrammar',
+    'foam.parse.Parsers',
+    'foam.parse.StringPS',
+    'foam.parse.TokenParsers',
+    'foam.webidl.Argument',
+    'foam.webidl.Attribute',
+    'foam.webidl.Callback',
+    'foam.webidl.CallbackInterface',
+    'foam.webidl.Const',
+    'foam.webidl.DecInteger',
+    'foam.webidl.Definition',
+    'foam.webidl.Dictionary',
+    'foam.webidl.DictionaryMemberData',
+    'foam.webidl.EmptyArray',
+    'foam.webidl.Enum',
+    'foam.webidl.Exception',
+    'foam.webidl.ExtendedAttributeArgList',
+    'foam.webidl.ExtendedAttributeIdentList',
+    'foam.webidl.ExtendedAttributeIdentifierOrString',
+    'foam.webidl.ExtendedAttributeNamedArgList',
+    'foam.webidl.ExtendedAttributeNoArgs',
+    'foam.webidl.Float',
+    'foam.webidl.HexInteger',
+    'foam.webidl.Identifier',
+    'foam.webidl.Implements',
+    'foam.webidl.Infinity',
+    'foam.webidl.Interface',
+    'foam.webidl.Iterable',
+    'foam.webidl.MapLike',
+    'foam.webidl.Member',
+    'foam.webidl.MemberData',
+    'foam.webidl.Namespace',
+    'foam.webidl.NonUnionType',
+    'foam.webidl.OctInteger',
+    'foam.webidl.Operation',
+    'foam.webidl.OperationQualifier',
+    'foam.webidl.ParameterizedType',
+    'foam.webidl.Partial',
+    'foam.webidl.Serializer',
+    'foam.webidl.SerializerPattern',
+    'foam.webidl.SerializerPatternType',
+    'foam.webidl.SetLike',
+    'foam.webidl.SimpleType',
+    'foam.webidl.StaticMember',
+    'foam.webidl.String',
+    'foam.webidl.Stringifier',
+    'foam.webidl.Type',
+    'foam.webidl.TypeSuffix',
+    'foam.webidl.Typedef',
+    'foam.webidl.UnionType',
+  ],
 
-  // Common tokens.
-  integer: nodebug(str(seq(
-    sym('om'),
-    alt(
-      str(seq(range('1', '9'), sym('r09'))),
-      str(seq('0', alt('X', 'x'), str(plus(alt(
-        range('0', '9'), range('A', 'F'), range('a', 'f')))))),
-      str(seq('0', str(repeat(range('0', '7'))))))))),
-  float: nodebug(str(seq(
-    sym('om'),
-    alt(
-      str(seq(
-        alt(
-          str(seq(sym('p09'), '.', sym('r09'))),
-          str(seq(sym('r09'), '.', sym('p09')))),
-        optional(
-          str(seq(sym('Ee'), sym('opm'), sym('p09')))))),
-      str(seq(sym('p09'), sym('Ee'), sym('opm'), sym('p09'))))))),
-  // TODO: This has been relaxed to parse identifiers like "__content" in
-  // Gecko's IDL. It should be /_?[A-Za-z][0-9A-Z_a-z-]*/.
-  identifier: nodebug(seq(
-    alt(sym('AZ'), sym('az'), sym('_09'), '_'),
-    str(repeat(alt(sym('AZ'), sym('az'), sym('_09'), '_', '-'))))),
-  string: nodebug(seq1(1, '"', str(repeat(notChar('"'))), '"')),
+  properties: [
+    {
+      // The core query parser. Needs a fieldname symbol added to function
+      // properly.
+      name: 'symbolsFactory',
+      value: function(
+        sym, literal, range, str, repeat, plus, optional, alt, seq, seq1,
+        notChars, trepeat, tseq1, tplus, tseq
+      ) {
+        return {
+          // Common patterns.
+          _09: range('0', '9'),
+          r09: str(repeat(sym('_09'))),
+          p09: str(plus(sym('_09'))),
+          om: optional('-'),
+          opm: optional(alt('+', '-')),
+          Ee: alt('E', 'e'),
+          AZ: range('A', 'Z'),
+          az: range('a', 'z'),
 
-  // NOTE: Trailing ";"s not optional in spec.
-  SemiColon: optional(';'),
+          // Common tokens.
+          integer: str(seq(
+            sym('om'),
+            alt(
+              str(seq(range('1', '9'), sym('r09'))),
+              str(seq('0', alt('X', 'x'), str(plus(alt(
+                range('0', '9'), range('A', 'F'), range('a', 'f')))))),
+              str(seq('0', str(repeat(range('0', '7')))))
+            )
+          )),
+          float: str(seq(
+            sym('om'),
+            alt(
+              str(seq(
+                alt(
+                  str(seq(sym('p09'), '.', sym('r09'))),
+                  str(seq('.', sym('p09')))
+                ),
+                optional(
+                  str(seq(sym('Ee'), sym('opm'), sym('p09')))
+                )
+              )),
+              str(seq(sym('p09'), sym('Ee'), sym('opm'), sym('p09')))
+            )
+          )),
 
-  // Parser's init function would take care of this for us if we provided
-  // the grammar at init time.
-  START: seq(parser.separator, sym('Definitions')),
+          // TODO: This has been relaxed to parse identifiers like "__content" in
+          // Gecko's IDL. It should be /_?[A-Za-z][0-9A-Z_a-z-]*/.
+          identifier: seq(
+            alt(sym('AZ'), sym('az'), '_'),
+            str(repeat(alt(sym('AZ'), sym('az'), sym('_09'), '_', '-')))
+          ),
+          string: seq1(1, '"', str(repeat(notChars('"'))), '"'),
 
-  // Definitions.
-  Definitions: trepeat(tseq(sym('ExtendedAttributeList'),
-                            sym('Definition'))),
-  Definition: alt(sym('CallbackOrInterfaceLike'),
-                  sym('Namespace'),
-                  sym('Partial'),
-                  sym('Dictionary'),
-                  sym('Enum'),
-                  sym('Typedef'),
-                  sym('ImplementsStatement')),
+          // NOTE: Trailing ";"s not optional in spec.
+          SemiColon: optional(';'),
 
-  // Callbacks and interfaces.
-  CallbackOrInterfaceLike: alt(sym('Callback'), sym('InterfaceLike')),
-  Callback: tseq('callback', sym('CallbackRestOrInterfaceLike')),
-  // TODO: Do we have semantic actions that require this production?
-  CallbackRestOrInterfaceLike: alt(sym('CallbackRest'),
-                                   sym('InterfaceLike')),
-  InterfaceLike: tseq(alt('interface', 'exception'),
-                      sym('identifier'), sym('Inheritance'), '{',
-                      sym('InterfaceMembers'), '}', ';'),
-  CallbackRest: tseq(sym('identifier'), '=', sym('Type'), '(',
-                     sym('ArgumentList'), ')', sym('SemiColon')),
-  Inheritance: optional(tseq1(1, ':', sym('identifier'))),
+          // Parser's init function would take care of this for us if we provided
+          // the grammar at init time.
+          START: seq1(1, this.separator, sym('Definitions')),
 
-  // Namespaces.
-  Namespace: tseq('namespace', sym('identifier'), '{',
-                  sym('NamespaceMembers'), '}', sym('SemiColon')),
-  NamespaceMembers: repeat(tseq(sym('ExtendedAttributeList'),
-                                sym('NamespaceMember'))),
-  // NOTE: Spec uses "ReturnType" below, instead of Type. Rely on semantic
-  // actions to care about the difference.
-  // TODO: Namespace members should only include Operation. Const added here
-  // to deal with Gecko's use of consts in "console" namespace.
-  NamespaceMember: alt(sym('Const'), sym('Operation')),
+          // Definitions.
+          Definitions: trepeat(tseq(
+            sym('ExtendedAttributeList'), sym('Definition')
+          )),
+          Definition: alt(
+            sym('CallbackOrInterfaceLike'),
+            sym('Namespace'),
+            sym('Partial'),
+            sym('Dictionary'),
+            sym('Enum'),
+            sym('Typedef'),
+            sym('ImplementsStatement')
+          ),
 
-  // Partials.
-  Partial: tseq('partial', sym('PartialDefinition')),
-  PartialDefinition: alt(sym('PartialInterface'),
-                         sym('PartialDictionary'),
-                         sym('Namespace')),
-  PartialInterface:	tseq('interface', sym('identifier'), '{',
-                             sym('InterfaceMembers'), '}', sym('SemiColon')),
-  PartialDictionary: tseq('dictionary', sym('identifier'), '{',
-                          sym('DictionaryMembers'), '}', sym('SemiColon')),
+          // Callbacks and interfaces.
+          CallbackOrInterfaceLike: alt(sym('Callback'), sym('InterfaceLike')),
+          Callback: tseq1(1, 'callback', sym('CallbackRestOrInterfaceLike')),
+          // TODO: Do we have semantic actions that require this production?
+          CallbackRestOrInterfaceLike: alt(
+            sym('CallbackRest'), sym('InterfaceLike')
+          ),
+          InterfaceLike: tseq(
+            alt('interface', 'exception'),
+            sym('identifier'), sym('Inheritance'), '{',
+            sym('InterfaceMembers'), '}', ';'
+          ),
+          CallbackRest: tseq(
+            sym('identifier'), '=', sym('Type'), '(', sym('ArgumentList'), ')',
+            sym('SemiColon')
+          ),
+          Inheritance: optional(tseq1(1, ':', sym('identifier'))),
 
-  // Dictionaries.
-  Dictionary: tseq('dictionary', sym('identifier'), sym('Inheritance'), '{',
-                   sym('DictionaryMembers'), '}', sym('SemiColon')),
-  DictionaryMembers: trepeat(tseq(sym('ExtendedAttributeList'),
-                                  sym('DictionaryMember'))),
-  DictionaryMember: tseq(sym('Required'), sym('Type'), sym('identifier'),
-                         sym('Default'), sym('SemiColon')),
-  Required: optional('required'),
+          // Namespaces.
+          Namespace: tseq(
+            'namespace', sym('identifier'), '{', sym('NamespaceMembers'), '}',
+            sym('SemiColon')
+          ),
+          NamespaceMembers: repeat(tseq(
+            sym('ExtendedAttributeList'), sym('NamespaceMember')
+          )),
+          // NOTE: Spec uses "ReturnType" below, instead of Type. Rely on semantic
+          // actions to care about the difference.
+          // TODO: Namespace members should only include Operation. Const added here
+          // to deal with Gecko's use of consts in "console" namespace.
+          NamespaceMember: alt(sym('Const'), sym('Operation')),
 
-  // Enums.
-  Enum: tseq('enum', sym('identifier'), '{', sym('EnumValueList'), '}',
-             sym('SemiColon')),
-  EnumValueList: tplus(sym('string'), ','),
+          // Partials.
+          Partial: tseq1(1, 'partial', sym('PartialDefinition')),
+          PartialDefinition: alt(
+            sym('PartialInterface'), sym('PartialDictionary'), sym('Namespace')
+          ),
+          PartialInterface: tseq(
+            'interface', sym('identifier'), '{', sym('InterfaceMembers'), '}',
+            sym('SemiColon')
+          ),
+          PartialDictionary: tseq(
+            'dictionary', sym('identifier'), '{', sym('DictionaryMembers'), '}',
+            sym('SemiColon')
+          ),
 
-  // Typedefs.
-  Typedef: tseq('typedef', sym('Type'), sym('identifier'),
-                sym('SemiColon')),
+          // Dictionaries.
+          Dictionary: tseq(
+            'dictionary', sym('identifier'), sym('Inheritance'), '{',
+            sym('DictionaryMembers'),
+            '}', sym('SemiColon')
+          ),
+          DictionaryMembers: trepeat(tseq(
+            sym('ExtendedAttributeList'), sym('DictionaryMember')
+          )),
+          DictionaryMember: tseq(
+            sym('Required'), sym('Type'), sym('identifier'), sym('Default'),
+            sym('SemiColon')
+          ),
+          Required: optional('required'),
 
-  // Implements statements.
-  ImplementsStatement: tseq(sym('identifier'), 'implements', sym('identifier'),
-                            sym('SemiColon')),
+          // Enums.
+          Enum: tseq(
+            'enum', sym('identifier'), '{', sym('EnumValueList'), '}',
+            sym('SemiColon')
+          ),
+          EnumValueList: tplus(sym('string'), ','),
 
-  // Interface members.
-  InterfaceMembers: trepeat(tseq(sym('ExtendedAttributeList'),
-                                 sym('InterfaceMember'))),
-  InterfaceMember: alt(sym('Const'),
-                       sym('Serializer'),
-                       sym('Stringifier'),
-                       sym('StaticMember'),
-                       sym('Operation'),
-                       sym('Iterable'),
-                       sym('Member')),
-  // NOTE: Type should be constrained "ConstType" from spec; rely on
-  // semtantic actions to check this.
-  Const: tseq('const', sym('Type'), sym('identifier'), '=',
-              sym('ConstValue'), sym('SemiColon')),
-  // NOTE: Type should be constrained "ReturnType" from spec; rely on
-  // semtantic actions to check this.
-  Operation: tseq(sym('Specials'), sym('Type'), sym('OperationRest')),
-  Serializer: tseq('serializer', sym('SerializerRest')),
-  Stringifier: tseq('stringifier',
-                    alt(literal(';'),
-                        sym('ReadOnlyAttributeRestOrOperation'))),
-  StaticMember: tseq('static',
-                     sym('ReadOnlyAttributeRestOrOperation')),
-  Iterable: tseq('iterable', '<', sym('Type'), sym('OptionalType'), '>',
-                 sym('SemiColon')),
-  Member: tseq(sym('Inherit'), sym('ReadOnly'),
-               sym('MemberRest')),
-  MemberRest: alt(sym('AttributeRest'),
-                  sym('MaplikeRest'),
-                  sym('SetlikeRest')),
-  Inherit: optional('inherit'),
-  ReadOnlyAttributeRest: tseq(sym('ReadOnly'), sym('AttributeRest')),
-  ReadOnly: optional('readonly'),
-  // ReadOnlyMember: tseq('readonly', sym('MemberRest')),
-  // TODO: 'inherit' required to disambiguate from ReadOnlyMember?
-  // Perhaps we want optional(alt(tseq('inherit', 'readonly'), 'inherit'))
-  // to capture no-inherit-prefix-but-still-read-write case?
-  // Also, can readonly attributes be inherited? If so, shouldn't they
-  // NOT be parsed as ReadWriteAttribute? Members and attributes can
-  // probably be simplified radically by simply supporting optional
-  // qualifiers before AttributeRest and Map/Set-likes. Check
-  // BNF and web IDL tests to confirm.
-  // ReadWriteMember: tseq(sym('ReadOnly'),
-  //                          sym('AttributeRest')),
-  // Inherit: optional('inherit'),
-  // TODO: Do we need this? Semantic action that differentiates between
-  // these and their "rest"s?
-  // ReadWriteMaplike: sym('MaplikeRest'),
-  // ReadWriteSetlike: sym('SetlikeRest'),
+          // Typedefs.
+          Typedef: tseq(
+            'typedef', sym('Type'), sym('identifier'), sym('SemiColon')
+          ),
 
-  // Within interface members.
-  Specials: trepeat(alt('getter',
-                        'setter',
-                        // TODO: "creator" is a proprietary extension used by
-                        // Gecko.
-                        'creator',
-                        'deleter',
-                        'legacycaller')),
-  OperationRest: tseq(optional(sym('identifier')), '(',
-                      sym('ArgumentList'), ')', sym('SemiColon')),
-  SerializerRest: alt(sym('SerializerRestOperation'),
-                      sym('SerializerRestPattern'),
-                      sym('SerializerRestEmpty')),
-  SerializerRestOperation: tseq(optional(sym('Type')),
-                                sym('OperationRest')),
-  SerializerRestPattern: tseq1(1, '=', sym('SerializationPattern'),
-                               sym('SemiColon')),
-  SerializerRestEmpty: literal(';'),
-  SerializationPattern: alt(tseq('{', sym('SerializationPatternInner'),
-                                 '}'),
-                            tseq('[', sym('SerializationPatternInner'),
-                                 ']'),
-                            sym('identifier')),
-  SerializationPatternInner: optional(alt(tseq('getter'),
-                                          // The spec specially lists:
-                                          // "inherit, id1, id, ..."
-                                          // in the SerializationPatternMap
-                                          // case only. Leave detection of
-                                          // this to semantic actions.
-                                          sym('IdentifierList'))),
-  // NOTE: "ReturnType" in spec.
-  ReadOnlyAttributeRestOrOperation: alt(
-    sym('ReadOnlyAttributeRest'), sym('Operation')),
-  // NOTE: Spec says AttributeName (identifier below) is:
-  // (AttributeNameKeyword|identifier) and that AttributeNameKeyword is:
-  // "required". Leave this to semantic actions.
-  AttributeRest: tseq('attribute', sym('Type'), sym('identifier'),
-                      sym('SemiColon')),
-  MaplikeRest: tseq('maplike', '<', sym('Type'), ',', sym('Type'), '>',
-                    sym('SemiColon')),
-  SetlikeRest: tseq('setlike', '<', sym('Type'), '>',
-                    sym('SemiColon')),
+          // Implements statements.
+          ImplementsStatement: tseq(
+            sym('identifier'), 'implements', sym('identifier'), sym('SemiColon')
+          ),
 
-  // Identifiers and arguments.
-  IdentifierList: tplus(sym('identifier'), ','),
-  ArgumentList: trepeat(sym('Argument'), ','),
-  Argument: tseq(sym('ExtendedAttributeList'),
-                 sym('OptionalOrRequiredArgument')),
-  OptionalOrRequiredArgument: alt(sym('OptionalArgument'),
-                                  sym('RequiredArgument')),
-  OptionalArgument: tseq('optional', sym('Type'), sym('ArgumentName'), sym('Default')),
-  RequiredArgument: tseq(sym('Type'), sym('Ellipsis'), sym('ArgumentName')),
-  Default: optional(tseq('=', alt(sym('ConstValue'), sym('string'),
-                                  tseq('[', ']')))),
-  // NOTE: Should be (ArgumentNameKeyword|identifier); we leave dealing with
-  // keywords to semantic actions.
-  ArgumentName: sym('identifier'),
-  Ellipsis: optional('...'),
+          // Interface members.
+          InterfaceMembers: trepeat(tseq(
+            sym('ExtendedAttributeList'), sym('InterfaceMember')
+          )),
+          InterfaceMember: alt(
+            sym('Const'), sym('Serializer'), sym('Stringifier'),
+            sym('StaticMember'), sym('Operation'), sym('Iterable'),
+            sym('Member')
+          ),
+          // NOTE: Type should be constrained "ConstType" from spec; rely on
+          // semtantic actions to check this.
+          Const: tseq(
+            'const', sym('Type'), sym('identifier'), '=', sym('ConstValue'),
+            sym('SemiColon')
+          ),
+          // NOTE: Type should be constrained "ReturnType" from spec; rely on
+          // semtantic actions to check this.
+          Operation: tseq(sym('Specials'), sym('Type'), sym('OperationRest')),
+          Serializer: tseq1(1, 'serializer', sym('SerializerRest')),
+          Stringifier: tseq1(1, 'stringifier', alt(
+            ';', sym('ReadOnlyAttributeRestOrOperation')
+          )),
+          StaticMember: tseq1(
+            1, 'static', sym('ReadOnlyAttributeRestOrOperation')
+          ),
+          Iterable: tseq(
+            'iterable', '<', sym('Type'), sym('OptionalType'), '>',
+            sym('SemiColon')
+          ),
+          Member: tseq(sym('Inherit'), sym('ReadOnly'), sym('MemberRest')),
+          MemberRest: alt(
+            sym('AttributeRest'), sym('MaplikeRest'), sym('SetlikeRest')
+          ),
+          Inherit: optional('inherit'),
+          ReadOnlyAttributeRest: tseq(sym('ReadOnly'), sym('AttributeRest')),
+          ReadOnly: optional('readonly'),
+          // ReadOnlyMember: tseq('readonly', sym('MemberRest')),
+          // TODO: 'inherit' required to disambiguate from ReadOnlyMember?
+          // Perhaps we want optional(alt(tseq('inherit', 'readonly'), 'inherit'))
+          // to capture no-inherit-prefix-but-still-read-write case?
+          // Also, can readonly attributes be inherited? If so, shouldn't they
+          // NOT be parsed as ReadWriteAttribute? Members and attributes can
+          // probably be simplified radically by simply supporting optional
+          // qualifiers before AttributeRest and Map/Set-likes. Check
+          // BNF and web IDL tests to confirm.
+          // ReadWriteMember: tseq(sym('ReadOnly'),
+          //                          sym('AttributeRest')),
+          // Inherit: optional('inherit'),
+          // TODO: Do we need this? Semantic action that differentiates between
+          // these and their "rest"s?
+          // ReadWriteMaplike: sym('MaplikeRest'),
+          // ReadWriteSetlike: sym('SetlikeRest'),
 
-  // Values.
-  // NOTE: This approximates the union of a bunch of literals. The -
-  // identifier part is for literals like "-Infinity".
-  ConstValue: alt(sym('ConstValueCornerCase'),
-                  sym('float'),
-                  sym('integer'),
-                  sym('identifier')),
-  ConstValueCornerCase: tseq('-', sym('identifier')),
+          // Within interface members.
+          Specials: trepeat(alt(
+            'getter', 'setter', 'deleter', 'legacycaller',
+            // TODO: "creator" is a proprietary extension used by
+            // Gecko.
+            'creator'
+          )),
+          OperationRest: tseq(
+            optional(sym('identifier')), '(', sym('ArgumentList'), ')',
+            sym('SemiColon')
+          ),
+          SerializerRest: alt(
+            sym('SerializerRestOperation'), sym('SerializerRestPattern'),
+            sym('SerializerRestEmpty')
+          ),
+          SerializerRestOperation: tseq(
+            optional(sym('Type')), sym('OperationRest')
+          ),
+          SerializerRestPattern: tseq1(1, '=', sym('SerializationPattern'),
+                                       sym('SemiColon')),
+          SerializerRestEmpty: literal(';'),
+          SerializationPattern: alt(
+            tseq('{', sym('SerializationPatternInner'), '}'),
+            tseq('[', sym('SerializationPatternInner'), ']'),
+            sym('identifier')
+          ),
+          // Spec has different patterns for SerializationPatternMap and
+          // SerializationPatternList. We just include all of them here
+          // (which is technically too permissive).
+          SerializationPatternInner: optional(alt(
+            // seq below: Produces ['getter'] consistent wit IdentifierList.
+            seq('getter'), sym('IdentifierList')
+          )),
+          // NOTE: "ReturnType" in spec.
+          ReadOnlyAttributeRestOrOperation: alt(
+            sym('ReadOnlyAttributeRest'), sym('Operation')
+          ),
+          // NOTE: Spec says AttributeName (identifier below) is:
+          // (AttributeNameKeyword|identifier) and that AttributeNameKeyword is:
+          // "required". Leave this to semantic actions.
+          AttributeRest: tseq(
+            'attribute', sym('Type'), sym('identifier'), sym('SemiColon')
+          ),
+          MaplikeRest: tseq(
+            'maplike', '<', sym('Type'), ',', sym('Type'), '>', sym('SemiColon')
+          ),
+          SetlikeRest: tseq1(
+            2, 'setlike', '<', sym('Type'), '>', sym('SemiColon')
+          ),
 
-  // Types.
-  // NOTE: We don't parse the type name "any" specially. This means that we
-  // may, for example, parse "any<Foo>" as a type, though it's not allowed.
-  Type: alt(sym('UnionType'), sym('NonUnionType')),
-  UnionType: tseq('(', tplus(sym('UnionMemberType'), 'or'), ')',
-                  sym('TypeSuffixes')),
-  // NOTE: We support nesting of union types, though the standard does not.
-  UnionMemberType: sym('Type'),
-  NonUnionType: alt(sym('ParameterizedType'), sym('SimpleType')),
-  ParameterizedType: tseq(sym('SimpleType'), '<', tplus(sym('Type'), ','), '>',
-                          sym('TypeSuffixes')),
-  SimpleType: tseq(alt(sym('BuiltInTypeName'), sym('identifier')),
-                   sym('TypeSuffixes')),
-  // Approximation of multi-token built-in type names.
-  // TODO: Parse this correctly.
-  BuiltInTypeName: tplus(alt('unsigned', 'short', 'long', 'unrestricted',
-                             'float', 'double', 'byte', 'octet')),
-  // TODO: Make this production more comprehensible.
-  // It allows for a series of "[]" and "?" with no "??"s.
-  TypeSuffixes: optional(alt(
-    tseq(sym('Nullable'),
-         optional(tseq(sym('Array'), sym('TypeSuffixes')))),
-    tseq(sym('Array'), optional(sym('TypeSuffixes'))))),
-  Nullable: literal('?'),
-  Array: tseq('[', ']'),
-  OptionalType: optional(tseq(',', sym('Type'))),
+          // Identifiers and arguments.
+          IdentifierList: tplus(sym('identifier'), ','),
+          ArgumentList: trepeat(sym('Argument'), ','),
+          Argument: tseq(sym('ExtendedAttributeList'),
+                         sym('OptionalOrRequiredArgument')),
+          OptionalOrRequiredArgument: alt(
+            sym('OptionalArgument'), sym('RequiredArgument')
+          ),
+          OptionalArgument: tseq(
+            'optional', sym('Type'), sym('ArgumentName'), sym('Default')
+          ),
+          RequiredArgument: tseq(sym('Type'), sym('Ellipsis'), sym('ArgumentName')),
+          Default: optional(tseq1(
+            1, '=', alt(sym('ConstValue'), sym('string'), tseq('[', ']'))
+          )),
+          // NOTE: Should be (ArgumentNameKeyword|identifier); we leave dealing with
+          // keywords to semantic actions.
+          ArgumentName: sym('identifier'),
+          Ellipsis: optional('...'),
 
-  // Extended attributes.
-  ExtendedAttributeList: optional(
-    tseq1(1, '[', trepeat(sym('ExtendedAttribute'), ','), ']')),
-  ExtendedAttribute: alt(sym('ExtendedAttributeIdentList'),
-                         sym('ExtendedAttributeNamedArgList'),
-                         sym('ExtendedAttributeIdentifierOrString'),
-                         sym('ExtendedAttributeArgList'),
-                         sym('ExtendedAttributeNoArgs')),
-  ExtendedAttributeIdentList: tseq(sym('identifier'), '=', '(',
-                                   sym('IdentifierOrStringList'), ')'),
-  ExtendedAttributeNamedArgList: tseq(sym('identifier'), '=',
-                                      sym('identifier'), '(',
-                                      sym('ArgumentList'), ')'),
-  ExtendedAttributeIdentifierOrString: tseq(sym('identifier'), '=',
-                                            sym('IdentifierOrString')),
-  ExtendedAttributeStr: tseq(sym('identifier'), '=',
-                             sym('string')),
-  ExtendedAttributeArgList: tseq(sym('identifier'), '(',
-                                 sym('ArgumentList'), ')'),
-  ExtendedAttributeNoArgs: sym('identifier'),
+          // Values.
+          // NOTE: This approximates the union of a bunch of literals. The -
+          // identifier part is for literals like "-Infinity".
+          ConstValue: alt(
+            sym('ConstValueCornerCase'), sym('float'), sym('integer'),
+            sym('identifier')
+          ),
+          ConstValueCornerCase: tseq('-', sym('identifier')),
 
-  IdentifierOrString: alt(sym('identifier'), sym('string')),
-  IdentifierOrStringList: tplus(sym('IdentifierOrString'), ','),
-};
+          // Types.
+          // NOTE: We don't parse the type name "any" specially. This means
+          // that we may, for example, parse "any<Foo>" as a type, though
+          // it's not allowed.
+          Type: alt(sym('UnionType'), sym('NonUnionType')),
+          UnionType: tseq(
+            '(', tplus(sym('UnionMemberType'), 'or'), ')', sym('TypeSuffixes')
+          ),
+          // NOTE: We support nesting of union types, though the standard
+          // does not.
+          UnionMemberType: sym('Type'),
+          NonUnionType: alt(sym('ParameterizedType'), sym('SimpleType')),
+          ParameterizedType: tseq(
+            sym('SimpleType'), '<', tplus(sym('Type'), ','), '>',
+            sym('TypeSuffixes')
+          ),
+          SimpleType: tseq(
+            alt(sym('BuiltInTypeName'), sym('identifier')), sym('TypeSuffixes')
+          ),
+          // Approximation of multi-token built-in type names.
+          // TODO: Parse this correctly.
+          BuiltInTypeName: tplus(alt(
+            'unsigned', 'short', 'long', 'unrestricted', 'float', 'double',
+            'byte', 'octet'
+          )),
+          // TODO: Make this production more comprehensible.
+          // It allows for a series of "[]" and "?" with no "??"s.
+          TypeSuffixes: optional(alt(
+            tseq(
+              sym('Nullable'), optional(tseq(sym('Array'), sym('TypeSuffixes')))
+            ),
+            tseq(sym('Array'), optional(sym('TypeSuffixes')))
+          )),
+          Nullable: literal('?'),
+          Array: tseq('[', ']'),
+          OptionalType: optional(tseq(',', sym('Type'))),
 
-function fSort(fs, a, b) {
-  var aValue;
-  var bValue;
-  for ( var i = 0; i < fs.length; i++ ) {
-    aValue = fs[i](a);
-    bValue = fs[i](b);
-    if (aValue !== undefined && bValue !== undefined) break;
-  }
-  if (aValue < bValue) return -1;
-  else if (aValue > bValue) return 1;
-  return 0;
-}
-var sort = fSort.bind(this, [
-  function(v) { return v.name; },
-  function(v) { return v.implementer; },
-  function(v) { return v.constructor.name; },
-]);
+          // Extended attributes.
+          ExtendedAttributeList: optional(
+            tseq1(1, '[', trepeat(sym('ExtendedAttribute'), ','), ']')
+          ),
+          ExtendedAttribute: alt(
+            sym('ExtendedAttributeIdentList'),
+            sym('ExtendedAttributeNamedArgList'),
+            sym('ExtendedAttributeIdentifierOrString'),
+            sym('ExtendedAttributeArgList'), sym('ExtendedAttributeNoArgs')
+          ),
+          ExtendedAttributeIdentList: tseq(
+            sym('identifier'), '=', '(', sym('IdentifierOrStringList'), ')'
+          ),
+          ExtendedAttributeNamedArgList: tseq(
+            sym('identifier'), '=', sym('identifier'), '(', sym('ArgumentList'),
+            ')'
+          ),
+          ExtendedAttributeIdentifierOrString: tseq(
+            sym('identifier'), '=', sym('IdentifierOrString')
+          ),
+          ExtendedAttributeStr: tseq(
+            sym('identifier'), '=', sym('string')
+          ),
+          ExtendedAttributeArgList: tseq(
+            sym('identifier'), '(', sym('ArgumentList'), ')'
+          ),
+          ExtendedAttributeNoArgs: sym('identifier'),
 
-parser.addActions(
-  function identifier(v) {
-    return v[0] + v[1];
-  },
-  function START(v) {
-    return v[1];
-  },
-  function Definitions(v) {
-    if ( v === null ) return null;
-    return v.map(function(attrsAndMember) {
-      if ( attrsAndMember[0] !== null )
-        attrsAndMember[1].attrs = attrsAndMember[0];
-      return attrsAndMember[1];
-    });
-  },
-  function Callback(v) {
-    return new ast.Callback(v[1]);
-  },
-  function InterfaceLike(v) {
-    var typeName = v[0].charAt(0).toUpperCase() + v[0].substr(1);
-    return v[2] === null ?
-      new ast[typeName]({ name: v[1], members: v[4] }) :
-      new ast[typeName]({ inheritsFrom: v[2], name: v[1], members: v[4] });
-  },
-  function CallbackRest(v) {
-    return v[4].length === 0 ? { name: v[0], returnType: v[2] } :
-    { name: v[0], returnType: v[2], args: v[4] };
-  },
-  function Namespace(v) {
-    return new ast.Namespace({ name: v[1], members: v[3] });
-  },
-  function NamespaceMembers(v) {
-    if ( v === null ) return null;
-    return v.map(function(attrsAndMember) {
-      if ( attrsAndMember[0] !== null )
-        attrsAndMember[1].attrs = attrsAndMember[0];
-      return attrsAndMember[1];
-    }).sort(sort);
-  },
-  function Partial(v) {
-    v[1].isPartial = true;
-    return v[1];
-  },
-  function PartialInterface(v) {
-    return new ast.PartialInterface({ name: v[1], members: v[3] });
-  },
-  function PartialDictionary(v) {
-    return new ast.Dictionary({ name: v[1], members: v[3] });
-  },
-  function Dictionary(v) {
-    return v[2] === null ?
-      new ast.Dictionary({ name: v[1], members: v[4] }) :
-      new ast.Dictionary({
-        inheritsFrom: v[2],
-        name: v[1],
-        members: v[4],
-      });
-  },
-  function DictionaryMembers(v) {
-    if ( v === null ) return null;
-    return v.map(function(attrsAndMember) {
-      if ( attrsAndMember[0] !== null )
-        attrsAndMember[1].attrs = attrsAndMember[0];
-      return attrsAndMember[1];
-    }).sort(sort);
-  },
-  function DictionaryMember(v) {
-    var ret = { type: v[1], name: v[2] };
-    if ( v[0] !== null ) ret.isRequired = true;
-    if ( v[3] !== null ) ret.defaultValue = v[3];
-    return ret;
-  },
-  function Enum(v) {
-    return new ast.Enum({ name: v[1], value: v[3] });
-  },
-  function Typedef(v) {
-    return new ast.Typedef({ type: v[1], name: v[2] });
-  },
-  function ImplementsStatement(v) {
-    return new ast.Implements({ implementer: v[0], implemented: v[2] });
-  },
-  function InterfaceMembers(v) {
-    if ( v === null ) return null;
-    return v.map(function(attrsAndMember) {
-      if ( attrsAndMember[0] !== null )
-        attrsAndMember[1].attrs = attrsAndMember[0];
-      return attrsAndMember[1];
-    }).sort(sort);
-  },
-  function Const(v) {
-    return { isConst: true, type: v[1], name: v[2], value: v[4] };
-  },
-  function Operation(v) {
-    if ( v[0].length > 0 ) v[2].specials = v[0];
-    v[2].returnType = v[1];
-    return v[2];
-  },
-  function Specials(v) {
-    return v;
-  },
-  function Serializer(v) {
-    return new ast.Serializer(v[1]);
-  },
-  function Stringifier(v) {
-    if ( v[1] === ';' ) return new ast.Stringifier({});
-    return new ast.Stringifier(v[1]);
-  },
-  function StaticMember(v) {
-    v[1].isStatic = true;
-    return v[1];
-  },
-  function Iterable(v) {
-    return v[3] === null ? new ast.Iterable({ valueType: v[2] }) :
-      new ast.Iterable({ keyType: v[2], valueType: v[3] });
-  },
-  function Member(v) {
-    if ( v[0] !== null ) v[2].isInherited = true;
-    if ( v[1] !== null ) v[2].isReadOnly = true;
-    return v[2];
-  },
-  function ReadOnlyAttributeRest(v) {
-    if ( v[0] !== null ) v[1].isReadOnly = true;
-    return v[1];
-  },
-  function OperationRest(v) {
-    var ret = {};
-    if ( v[2].length > 0 ) ret.args = v[2];
-    if ( v[0] === null ) return ret;
-    ret.name = v[0];
-    return ret;
-  },
-  function SerializerRestOperation(v) {
-    if ( v[0] === null ) return v[1];
-    v[1].type = v[0];
-    return v[1];
-  },
-  function SerializerRestEmpty(v) {
-    return {};
-  },
-  function SerializationPattern(v) {
-    if ( v[0] === '{' ) return { mapPattern: v[1] };
-    return { arrayPattern: v[1] };
-  },
-  function AttributeRest(v) {
-    return new ast.Attribute({ type: v[1], name: v[2] });
-  },
-  function MaplikeRest(v) {
-    return new ast.MapLike({ keyType: v[2], valueType: v[4] });
-  },
-  function SetlikeRest(v) {
-    return new ast.SetLike({ type: v[2] });
-  },
-  function Argument(v) {
-    if ( v[0] ) v[1].attrs = v[0];
-    return v[1];
-  },
-  function OptionalArgument(v) {
-    return v[3] === null ? { type: v[1], name: v[2], optional: true } :
-    { type: v[1], name: v[2], optional: true, defaultValue: v[3] };
-  },
-  function RequiredArgument(v) {
-    return v[1] === null ? { type: v[0], name: v[2] } :
-    { type: v[0], name: v[2], isVariadic: true };
-  },
-  function Default(v) {
-    if ( v === null ) return null;
-    return v[1];
-  },
-  function ConstValueCornerCase(v) {
-    return v.join('');
-  },
-  function UnionType(v) {
-    return v[3] === null ? new ast.UnionType({ types: v[1] }) :
-      new ast.UnionType({ types: v[1], params: v[3] });
-  },
-  function ParameterizedType(v) {
-    if ( v[0].params ) v[0].params = v[0].params.concat(v[2]);
-    else               v[0].params = v[2];
-    if ( v[4] !== null ) v[0].params = v[0].params.concat(v[4]);
-    return v[0];
-  },
-  function SimpleType(v) {
-    return v === null ? null :
-      v[1] === null ? { name: v[0] } : { name: v[0], params: v[1] };
-  },
-  function BuiltInTypeName(v) {
-    if ( v === null ) return null;
-    return v.join(' ');
-  },
-  function TypeSuffixes(v) {
-    if ( v === null ) return null;
-    if ( v[1] === null ) return [ v[0] ];
-    if ( v[0] === 'nullable' ) return [ v[0], v[1][0] ].concat(v[1][1]);
-    else                       return [ v[0] ].concat(v[1]);
-    if ( v[1] ) return v[0].concat(v[1]);
-    return [ v[0] ];
-  },
-  function Nullable(v) {
-    return 'nullable';
-  },
-  function Array(v) {
-    return 'array';
-  },
-  function OptionalType(v) {
-    return v === null ? null : v[1];
-  },
-  function ExtendedAttributeList(v) {
-    if ( v === null ) return null;
-    return v.sort(sort);
-  },
-  function ExtendedAttribute(v) {
-    return new ast.ExtendedAttribute(v);
-  },
-  function ExtendedAttributeIdentList(v) {
-    // E.g., "foo=(a, b)"
-    return { name: v[0], identifiers: v[3] };
-  },
-  function ExtendedAttributeNamedArgList(v) {
-    // E.g., "a=b(T1 c, T2 d)"
-    return v[4].length === 0 ? { name: v[0], opName: v[2] } :
-    { name: v[0], opName: v[2], args: v[4] };
-  },
-  function ExtendedAttributeIdentifierOrString(v) {
-    return { name: v[0], value: v[2] };
-  },
-  function ExtendedAttributeArgList(v) {
-    return v[2].length === 0 ? { name: v[0] } :
-    { name: v[0], args: v[2] };
-  },
-  function ExtendedAttributeNoArgs(v) {
-    return { name: v };
-  }
-);
+          IdentifierOrString: alt(sym('identifier'), sym('string')),
+          IdentifierOrStringList: tplus(sym('IdentifierOrString'), ','),
+        };
+      },
+    },
+    {
+      name: 'symbols',
+      factory: function() {
+        return foam.Function.withArgs(
+          this.symbolsFactory,
+          this.TokenParsers.create({separator: this.separator}),
+          this
+        );
+      },
+    },
+    {
+      name: 'separatorFactory',
+      value: function(plus0, alt, seq1, repeat0, notChars, seq) {
+        return repeat0(alt(
+          // Whitespace.
+          alt(' ', '\t', '\n', '\r', '\f'),
+          // Single-line comment.
+          seq(
+            '//',
+            repeat0(notChars('\r\n')), alt('\r\n', '\n')
+          ),
+          // Multi-line comment.
+          seq1(
+            1,
+            '/*',
+            repeat0(alt(notChars('*'), seq('*', notChars('\/')))),
+            '*\/'
+          )
+        ));
+      },
+    },
+    {
+      name: 'separator',
+      factory: function() {
+        return foam.Function.withArgs(
+          this.separatorFactory,
+          this.Parsers.create(),
+          this
+        );
+      },
+    },
+    {
+      name: 'actions',
+      factory: function() {
+        var parser = this;
+        return {
+          Definitions: parser.extAttrAndValue(parser.Definition, 'definition'),
+          Callback: function(v) {
+            if (parser.Callback.isInstance(v)) return v;
+            return parser.CallbackInterface.create({interface: v});
+          },
+          InterfaceLike: function(v) {
+            return (v[0] === 'interface' ? parser.Interface : parser.Exception)
+              .create({name: v[1], inheritsFrom: v[2], members: v[4]});
+          },
+          CallbackRest: function(v) {
+            return parser.Callback.create({
+              name: v[0],
+              returnType: v[2],
+              args: v[4],
+            });
+          },
+          Namespace: function(v) {
+            return parser.Namespace.create({name: v[1], members: v[3]});
+          },
+          NamespaceMembers: parser.extAttrAndValue(parser.Member, 'member'),
+          Partial: function(v) {
+            v.isPartial = true;
+            return v;
+          },
+          PartialInterface: function(v) {
+            return parser.Interface.create({
+              name: v[1],
+              members: v[3],
+              isPartial: true,
+            });
+          },
+          PartialDictionary: function(v) {
+            return parser.Dictionary.create({
+              name: v[1],
+              members: v[3],
+              isPartial: true,
+            });
+          },
+          Dictionary: function(v) {
+            return parser.Dictionary.create({
+              name: v[0],
+              inheritsFrom: v[2],
+              members: v[4],
+            });
+          },
+          DictionaryMembers: parser.extAttrAndValue(parser.Member, 'member'),
+          DictionaryMember: function(v) {
+            return parser.DictionaryMemberData.create({
+              isRequired: v[0] !== null,
+              type: v[1],
+              name: v[2],
+              value: v[3],
+            });
+          },
+          Enum: function(v) {
+            return parser.Enum.create({name: v[1], members: v[3]});
+          },
+          Typedef: function(v) {
+            return parser.Typedef.create({type: v[1], name: v[2]});
+          },
+          ImplementsStatement: function(v) {
+            return parser.Implements.create({
+              implementer: v[0],
+              implemented: v[2],
+            });
+          },
+          InterfaceMembers: parser.extAttrAndValue(parser.Member, 'member'),
+          Const: function(v) {
+            return parser.Const.create({
+              type: v[1],
+              name: v[2],
+              value: v[4],
+            });
+          },
+          Operation: function(v) {
+            v[2].qualifieres = v[0];
+            v[2].returnType = v[1];
+            return v[2];
+          },
+          Specials: function(v) {
+            var OQ = parser.OperationQualifier;
+            for (var i = 0; i < v.length; i++) {
+              switch (v[i]) {
+              case 'getter':
+                v[i] = OQ.GETTER;
+                break;
+              case 'setter':
+                v[i] = OQ.SETTER;
+                break;
+              case 'deleter':
+                v[i] = OQ.DELETER;
+                break;
+              case 'legacycaller':
+                v[i] = OQ.LEGACY_CALLER;
+                break;
+              case 'creator':
+                v[i] = OQ.CREATOR;
+                break;
+              default:
+                throw new Error('Unknown operation qualifier:', v[i]);
+              }
+            }
 
-// Attach exported modules/types to module exports.
-var DB = require('./DB.es6.js');
-var Visitor = require('./Visitor.es6.js');
-var VisitorGenerator = require('./VisitorGenerator.es6.js');
-module.exports = {
-  parser: parser,
-  ast: ast,
-  DB: DB,
-  Visitor: Visitor,
-  VisitorGenerator: VisitorGenerator,
-};
+            return v;
+          },
+          Serializer: function(v) {
+            return parser.Operation.isInstance(v) ?
+              parser.Serializer.create({operation: v}) :
+              parser.Serializer.create({pattern: v});
+          },
+          Stringifier: function(v) {
+            if (v === ';') return parser.Stringifier.create();
+            return parser.Attribute.isInstance(v) ?
+              parser.Stringifier.create({attribute: v}) :
+              parser.Stringifier.create({operation: v});
+          },
+          StaticMember: function(v) {
+            return parser.Attribute.isInstance(v) ?
+              parser.StaticMember.create({attribute: v}) :
+              parser.StaticMember.create({operation: v});
+          },
+          Iterable: function(v) {
+            return parser.Iterable.create({type: v[2], valueType: v[3]});
+          },
+          Member: function(v) {
+            v[2].isInherited = v[0] !== null;
+            v[2].isReadOnly = v[1] !== null;
+            return v[2];
+          },
+          ReadOnlyAttributeRest: function(v) {
+            v[1].isReadOnly = v[0] !== null;
+            return v[1];
+          },
+          OperationRest: function(v) {
+            return parser.Operation.create({
+              name: v[0],
+              args: v[2],
+            });
+          },
+          SerializerRestOperation: function(v) {
+            if (v[0] !== null) v[1].returnType = v[0];
+            return v[1];
+          },
+          SerializerRestEmpty: function(v) {
+            return null;
+          },
+          SerializationPattern: function(v) {
+            return parser.SerializerPattern.create({
+              type: v[0] === '{' ? parser.SerializerPatternType.MAP :
+                parser.SerializerPatternType.ARRAY,
+              parts: v[1],
+            });
+          },
+          AttributeRest: function(v) {
+            return parser.Attribute.create({type: v[1], name: v[2]});
+          },
+          MaplikeRest: function(v) {
+            return parser.MapLike.create({type: v[2], valueType: v[4]});
+          },
+          SetlikeRest: function(v) {
+            return parser.SetLike.create({type: v});
+          },
+          Argument: function(v) {
+            if (v[0]) v[1].attrs = v[0];
+            return v[1];
+          },
+          OptionalArgument: function(v) {
+            return parser.Argument.create(
+              v[3] === null ?
+                {type: v[1], name: v[2], isOptional: true} :
+                {type: v[1], name: v[2], isOptional: true, value: v[3]}
+            );
+          },
+          RequiredArgument: function(v) {
+            return parser.Argument.create(
+              v[1] === null ?
+                {type: v[0], name: v[2]} :
+                {type: v[0], name: v[2], isVariadic: true}
+            );
+          },
+          Default: function(v) {
+            if (v === null) return null;
+            return v;
+          },
+          ConstValueCornerCase: function(v) {
+            // TODO(markdittmer): No checks elsewhere turn
+            // Identifier("Infinity") into Infinity.
+            return parser.Infinity.create({isNegative: true});
+          },
+          UnionType: function(v) {
+            return v[3] === null ? parser.UnionType.create({types: v[1]}) :
+              parser.UnionType.create({types: v[1], params: v[3]});
+          },
+          ParameterizedType: function(v) {
+            // Add params to existing NonUnionType.
+            if (v[0].params) v[0].params = v[0].params.concat(v[2]);
+            else v[0].params = v[2];
+            if (v[4] !== null) v[0].params = v[0].params.concat(v[4]);
+            return v[0];
+          },
+          SimpleType: function(v) {
+            return v === null ? null :
+              parser.NonUnionType.create(
+                v[1] === null ? {name: v[0]} : {name: v[0], suffixes: v[1]}
+              );
+          },
+          BuiltInTypeName: function(v) {
+            if (v === null) return null;
+            return v.join(' ');
+          },
+          TypeSuffixes: function(v) {
+            if (v === null) return null;
+            if (v[1] === null) return [v[0]];
+            if (v[0] === parser.TypeSuffix.NULLABLE)
+              return [v[0], v[1][0]].concat(v[1][1]);
+            else
+              return [v[0]].concat(v[1]);
+            if (v[1]) return v[0].concat(v[1]);
+            return [v[0]];
+          },
+          Nullable: function(v) {
+            return parser.TypeSuffix.NULLABLE;
+          },
+          Array: function(v) {
+            return parser.TypeSuffix.ARRAY;
+          },
+          OptionalType: function(v) {
+            return v === null ? null : v[1];
+          },
+          ExtendedAttributeIdentList: function(v) {
+            // E.g., "foo=(a, b)"
+            return parser.ExtendedAttributeIdentList.create({
+              name: v[0],
+              args: v[3],
+            });
+          },
+          ExtendedAttributeNamedArgList: function(v) {
+            // E.g., "a=b(T1 c, T2 d)"
+            return parser.ExtendedAttributeNamedArgList.create({
+              name: v[0],
+              opName: v[2],
+              args: v[4],
+            });
+          },
+          ExtendedAttributeIdentifierOrString: function(v) {
+            return parser.ExtendedAttributeIdentifierOrString.create({
+              name: v[0],
+              value: v[2],
+            });
+          },
+          ExtendedAttributeArgList: function(v) {
+            return parser.ExtendedAttributeArgList.create({
+              name: v[0],
+              args: v[2],
+            });
+          },
+          ExtendedAttributeNoArgs: function(v) {
+            return parser.ExtendedAttributeNoArgs.create({name: v});
+          },
+          identifier: function(v) {
+            return parser.Identifier.create({literal: v[0] + v[1]});
+          },
+          string: function(v) {
+            return parser.String.create({literal: v});
+          },
+        };
+      },
+    },
+    {
+      name: 'grammar',
+      factory: function() {
+        var grammar = this.ImperativeGrammar.create({symbols: this.symbols});
+        grammar.addActions(this.actions);
+        return grammar;
+      }
+    },
+    {
+      name: 'ps',
+      factory: function() {
+        return this.StringPS.create();
+      },
+    },
+  ],
+
+  methods: [
+    function parseString(str, opt_name) {
+      opt_name = opt_name || 'START';
+
+      this.ps.setString(str);
+      var start = this.grammar.getSymbol(opt_name);
+      foam.assert(start, 'No symbol found for', opt_name);
+
+      return start.parse(this.ps, this.grammar);
+    },
+    function logParse(str, opt_name) {
+      var result = this.parseString(str, opt_name);
+      if (result && result.pos === str.length) console.info('Parse complete');
+      else console.warn('Parse incomplete');
+      return result;
+    },
+    // Reusable action for productions of the form FooMembers.
+    function extAttrAndValue(Ctor, key) {
+      return function(v) {
+        var ret = [];
+        if (v === null) return ret;
+        for (var i = 0; i < v.length; i++) {
+          var data = {attrs: v[i][0] || []};
+          data[key] = v[i][1];
+          ret.push(Ctor.create(data));
+        }
+        return ret;
+      };
+    },
+  ],
+});

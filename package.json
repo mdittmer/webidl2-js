@@ -23,8 +23,6 @@
     "extends": "google"
   },
   "dependencies": {
-    "lodash": "^4.16.4",
-    "parse-js": "git://github.com/mdittmer/parse-js.git",
-    "simple-serialization": "git://github.com/mdittmer/simple-serialization.git"
+    "foam2-experimental": "git://github.com/foam-framework/foam2-experimental.git#consumable"
   }
 }
