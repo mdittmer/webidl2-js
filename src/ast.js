@@ -24,15 +24,22 @@ foam.CLASS({
 
   properties: [
     {
-      class: 'String',
+      class: 'FObjectProperty',
+      of: 'foam.webidl.Literal',
       name: 'name',
     },
   ],
 
   methods: [
     function compareTo(other) {
-      if (this.name < other.name) return -1;
-      else if (this.name > other.name) return 1;
+      if ((!this.cls_.isInstance(other)) || (!this.name) || (!other.name))
+        return this.SUPER(other);
+
+      var left = this.name.literal;
+      var right = other.name.literal;
+      if (left < right) return -1;
+      else if (left > right) return 1;
+
       return this.SUPER(other);
     },
   ],
@@ -44,8 +51,10 @@ foam.CLASS({
 
   properties: [
     {
-      class: 'String',
+      class: 'FObjectProperty',
+      of: 'foam.webidl.Literal',
       name: 'inheritsFrom',
+      value: null,
     },
   ],
 });
@@ -106,6 +115,14 @@ foam.CLASS({
       name: 'member',
     },
   ],
+
+  methods: [
+    function outputWebIDL(o) {
+      if (this.attrs.length > 0)
+        o.forEach(this.attrs, '[', ']', ',').nl().indent();
+      o.output(this.member);
+    },
+  ],
 });
 
 foam.CLASS({
@@ -161,9 +178,14 @@ foam.CLASS({
 
   methods: [
     function compareTo(other) {
-      if (this.name < other.name) return -1;
-      else if (this.name > other.name) return 1;
-      return 0;
+      if (!this.cls_.isInstance(other)) return this.SUPER(other);
+
+      var left = this.name ? this.name.literal : '';
+      var right = other.name ? other.name.literal : '';
+      if (left < right) return -1;
+      else if (left > right) return 1;
+
+      return this.SUPER(other);
     },
   ],
 });
@@ -175,6 +197,12 @@ foam.CLASS({
   implements: [
     'foam.webidl.Named',
   ],
+
+  methods: [
+    function outputWebIDL(o) {
+      o.output(this.name);
+    },
+  ],
 });
 
 foam.CLASS({
@@ -184,6 +212,12 @@ foam.CLASS({
   implements: [
     'foam.webidl.Named',
     'foam.webidl.Parameterized',
+  ],
+
+  methods: [
+    function outputWebIDL(o) {
+      o.output(this.name).forEach(this.args, '(', ')', ',');
+    },
   ],
 });
 
@@ -195,6 +229,12 @@ foam.CLASS({
     'foam.webidl.Named',
     'foam.webidl.Defaulted',
   ],
+
+  methods: [
+    function outputWebIDL(o) {
+      o.output(this.name).out('=').output(this.value);
+    },
+  ],
 });
 
 foam.CLASS({
@@ -203,13 +243,21 @@ foam.CLASS({
   extends: 'foam.webidl.ExtendedAttribute',
   implements: [
     'foam.webidl.Named',
-    'foam.webidl.Defaulted',
+    'foam.webidl.Parameterized',
   ],
 
   properties: [
     {
-      class: 'String',
+      class: 'FObjectProperty',
+      of: 'foam.webidl.Literal',
       name: 'opName',
+    },
+  ],
+
+  methods: [
+    function outputWebIDL(o) {
+      o.output(this.name).out('=').output(this.opName)
+        .forEach(this.args, '(', ')', ',');
     },
   ],
 });
@@ -229,6 +277,12 @@ foam.CLASS({
       name: 'args',
     },
   ],
+
+  methods: [
+    function outputWebIDL(o) {
+      o.output(this.name).out('=').forEach(this.args, '(', ')', ',');
+    },
+  ],
 });
 
 foam.CLASS({
@@ -245,6 +299,15 @@ foam.CLASS({
     {
       class: 'Boolean',
       name: 'isRequired',
+    },
+  ],
+
+  methods: [
+    function outputWebIDL(o) {
+      if (this.isRequired) o.out('required ');
+      o.output(this.type).out(' ').output(this.name);
+      if (this.value) o.out(' = ').output(this.value);
+      o.out(';');
     },
   ],
 });
@@ -279,6 +342,14 @@ foam.CLASS({
       name: 'definition',
     },
   ],
+
+  methods: [
+    function outputWebIDL(o) {
+      if (this.attrs.length > 0)
+        o.forEach(this.attrs, '[', ']', ',').nl().indent();
+      o.output(this.definition);
+    },
+  ],
 });
 
 foam.CLASS({
@@ -292,6 +363,12 @@ foam.CLASS({
       value: false,
     },
   ],
+
+  methods: [
+    function outputWebIDL(o) {
+      if (this.isPartial) o.out('partial ');
+    },
+  ],
 });
 
 foam.CLASS({
@@ -302,6 +379,14 @@ foam.CLASS({
     'foam.webidl.Named',
     'foam.webidl.Returner',
     'foam.webidl.Parameterized',
+  ],
+
+  methods: [
+    function outputWebIDL(o) {
+      this.SUPER(o);
+      o.out('callback ').output(this.name).out(' = ').output(this.returnType)
+        .forEach(this.args, '(', ')', ',').out(';');
+    },
   ],
 });
 
@@ -317,6 +402,13 @@ foam.CLASS({
       name: 'interface',
     },
   ],
+
+  methods: [
+    function outputWebIDL(o) {
+      this.SUPER(o);
+      o.out('callback ').output(this.interface);
+    },
+  ],
 });
 
 foam.CLASS({
@@ -327,6 +419,16 @@ foam.CLASS({
     'foam.webidl.Named',
     'foam.webidl.Inheritable',
     'foam.webidl.Membered',
+  ],
+
+  methods: [
+    function outputWebIDL(o) {
+      this.SUPER(o);
+      o.out('interface ').output(this.name).out(' ');
+      if (this.inheritsFrom) o.out(': ').output(this.inheritsFrom).out(' ');
+      o.forEach(this.members, '{', '}');
+      o.out(';');
+    },
   ],
 });
 
@@ -339,6 +441,15 @@ foam.CLASS({
     'foam.webidl.Inheritable',
     'foam.webidl.Membered',
   ],
+
+  methods: [
+    function outputWebIDL(o) {
+      this.SUPER(o);
+      o.out('exception ').output(this.name).out(' ');
+      if (this.inheritsFrom) o.out(': ').output(this.inheritsFrom).out(' ');
+      o.forEach(this.members, '{', '}').out(';');
+    },
+  ],
 });
 
 foam.CLASS({
@@ -348,6 +459,14 @@ foam.CLASS({
   implements: [
     'foam.webidl.Named',
     'foam.webidl.Membered',
+  ],
+
+  methods: [
+    function outputWebIDL(o) {
+      this.SUPER(o);
+      o.out('namespace ').output(this.name).out(' ').forEach(this.members, '{', '}')
+        .out(';');
+    },
   ],
 });
 
@@ -360,6 +479,15 @@ foam.CLASS({
     'foam.webidl.Inheritable',
     'foam.webidl.Membered',
   ],
+
+  methods: [
+    function outputWebIDL(o) {
+      this.SUPER(o);
+      o.out('dictionary ').output(this.name).out(' ');
+      if (this.inheritsFrom) o.out(': ').output(this.inheritsFrom).out(' ');
+      o.forEach(this.members, '{', '}').out(';');
+    },
+  ],
 });
 
 foam.CLASS({
@@ -369,6 +497,14 @@ foam.CLASS({
   implements: [
     'foam.webidl.Named',
     'foam.webidl.Membered',
+  ],
+
+  methods: [
+    function outputWebIDL(o) {
+      this.SUPER(o);
+      o.out('enum ').output(this.name).out(' ')
+        .forEach(this.members, '{', '}', ',').out(';');
+    },
   ],
 });
 
@@ -387,6 +523,13 @@ foam.CLASS({
       name: 'type',
     },
   ],
+
+  methods: [
+    function outputWebIDL(o) {
+      this.SUPER(o);
+      o.out('typedef ').output(this.type).out(' ').output(this.name).out(';');
+    },
+  ],
 });
 
 foam.CLASS({
@@ -396,12 +539,22 @@ foam.CLASS({
 
   properties: [
     {
-      class: 'String',
+      class: 'FObjectProperty',
+      of: 'foam.webidl.Literal',
       name: 'implementer',
     },
     {
-      class: 'String',
+      class: 'FObjectProperty',
+      of: 'foam.webidl.Literal',
       name: 'implemented',
+    },
+  ],
+
+  methods: [
+    function outputWebIDL(o) {
+      this.SUPER(o);
+      o.output(this.implementer).out(' implements ').output(this.implemented)
+        .out(';');
     },
   ],
 });
@@ -423,6 +576,24 @@ foam.CLASS({
       name: 'operation',
     },
   ],
+
+  methods: [
+    function compareTo(other) {
+      if (!this.cls_.isInstance(other)) return this.SUPER(other);
+
+      return foam.util.compare(
+        this.attribute || this.operation,
+        other.attribute || other.operation
+      );
+    },
+    function outputWebIDL(o) {
+      o.out('static ');
+      if (this.attribute)
+        o.output(this.attribute);
+      else
+        o.output(this.operation);
+    },
+  ],
 });
 
 foam.CLASS({
@@ -434,6 +605,13 @@ foam.CLASS({
     'foam.webidl.Defaulted',
     'foam.webidl.Typed',
   ],
+
+  methods: [
+    function outputWebIDL(o) {
+      o.out('const ').output(this.type).out(' ').output(this.name).out(' = ')
+        .output(this.value).out(';');
+    },
+  ],
 });
 
 foam.CLASS({
@@ -444,6 +622,14 @@ foam.CLASS({
     'foam.webidl.AttributeLike',
     'foam.webidl.Named',
     'foam.webidl.Typed',
+  ],
+
+  methods: [
+    function outputWebIDL(o) {
+      if (this.isInherited) o.out('inherited ');
+      if (this.isReadOnly) o.out('readonly ');
+      o.out('attribute ').output(this.type).out(' ').output(this.name).out(';');
+    },
   ],
 });
 
@@ -491,11 +677,25 @@ foam.CLASS({
       name: 'qualifiers',
     },
   ],
+
+  methods: [
+    function outputWebIDL(o) {
+      for (var i = 0; i < this.qualifiers.length; i++) {
+        o.out(this.qualifiers[i].label, ' ');
+      }
+      o.output(this.returnType).out(' ');
+      if (this.name) o.output(this.name);
+      o.forEach(
+        this.args, '(', ')', ','
+      ).out(';');
+    },
+  ],
 });
 
 foam.CLASS({
   package: 'foam.webidl',
   name: 'Iterable',
+  extends: 'foam.webidl.MemberData',
   implements: [
     'foam.webidl.Typed',
   ],
@@ -505,6 +705,14 @@ foam.CLASS({
       class: 'FObjectProperty',
       of: 'foam.webidl.Type',
       name: 'valueType',
+    },
+  ],
+
+  methods: [
+    function outputWebIDL(o) {
+      var types = [this.type];
+      if (this.valueType) types.push(this.valueType);
+      o.out('iterable').forEach(types, '<', '>', ',').out(';');
     },
   ],
 });
@@ -525,6 +733,15 @@ foam.CLASS({
       name: 'valueType',
     },
   ],
+
+  methods: [
+    function outputWebIDL(o) {
+      if (this.isInherited) o.out('inherited ');
+      if (this.isReadOnly) o.out('readonly ');
+      o.out('maplike').forEach([this.type, this.valueType], '<', '>', ',')
+        .out(';');
+    },
+  ],
 });
 
 foam.CLASS({
@@ -534,6 +751,14 @@ foam.CLASS({
   implements: [
     'foam.webidl.AttributeLike',
     'foam.webidl.Typed',
+  ],
+
+  methods: [
+    function outputWebIDL(o) {
+      if (this.isInherited) o.out('inherited ');
+      if (this.isReadOnly) o.out('readonly ');
+      o.out('setlike<').output(this.type).out('>;');
+    },
   ],
 });
 
@@ -554,6 +779,15 @@ foam.CLASS({
       name: 'pattern',
     },
   ],
+
+  methods: [
+    function outputWebIDL(o) {
+      o.out('serializer');
+      if (this.operation) o.out(' ').output(this.operation);
+      else if (this.pattern) o.out(' = ').output(this.pattern);
+      o.out(';');
+    },
+  ],
 });
 
 foam.CLASS({
@@ -571,6 +805,15 @@ foam.CLASS({
       class: 'FObjectProperty',
       of: 'foam.webidl.Operation',
       name: 'operation',
+    },
+  ],
+
+  methods: [
+    function outputWebIDL(o) {
+      o.out('stringifier');
+      if (this.attribute) o.out(' ').output(this.attribute);
+      else if (this.operation) o.out(' ').output(this.operation);
+      else o.out(';');
     },
   ],
 });
@@ -595,6 +838,19 @@ foam.CLASS({
       class: 'Boolean',
       name: 'isVariadic',
       value: false,
+    },
+  ],
+
+  methods: [
+    function outputWebIDL(o) {
+      if (this.attrs.length > 0)
+        o.forEach(this.attrs, '[', ']', ',').nl().indent();
+      if (this.isOptional) o.out('optional ');
+      o.output(this.type);
+      if (this.isVariadic) o.out('... ');
+      else o.out(' ');
+      o.output(this.name);
+      if (this.value) o.out(' = ').output(this.value);
     },
   ],
 });
@@ -625,6 +881,14 @@ foam.CLASS({
       name: 'suffixes',
     },
   ],
+
+  methods: [
+    function outputWebIDL(o) {
+      for (var i = 0; i < this.suffixes.length; i++) {
+        o.out(this.suffixes[i].label);
+      }
+    },
+  ],
 });
 
 foam.CLASS({
@@ -637,6 +901,13 @@ foam.CLASS({
       class: 'FObjectArray',
       of: 'foam.webidl.Type',
       name: 'types',
+    },
+  ],
+
+  methods: [
+    function outputWebIDL(o) {
+      o.forEach(this.types, '(', ')', ' or');
+      this.SUPER(o);
     },
   ],
 });
@@ -654,6 +925,14 @@ foam.CLASS({
       class: 'FObjectArray',
       of: 'foam.webidl.Type',
       name: 'params',
+    },
+  ],
+
+  methods: [
+    function outputWebIDL(o) {
+      o.output(this.name);
+      if (this.params.length > 0) o.forEach(this.params, '<', '>', ',');
+      this.SUPER(o);
     },
   ],
 });
@@ -681,6 +960,9 @@ foam.ENUM({
 foam.CLASS({
   package: 'foam.webidl',
   name: 'SerializerPattern',
+  requires: [
+    'foam.webidl.SerializerPatternType',
+  ],
 
   properties: [
     {
@@ -689,8 +971,21 @@ foam.CLASS({
       name: 'type',
     },
     {
-      class: 'StringArray',
+      class: 'FObjectArray',
+      of: 'foam.webidl.Literal',
       name: 'parts',
+    },
+  ],
+
+  methods: [
+    function outputWebIDL(o) {
+      if (this.type === this.SerializerPatternType.IDENTIFIER) {
+        o.out(this.parts[0]);
+      } else if (this.type === this.SerializerPatternType.MAP) {
+        o.forEach(this.parts, '{', '}', ',');
+      } else if (this.type === this.SerializerPatternType.ARRAY) {
+        o.forEach(this.parts, '[', ']', ',');
+      }
     },
   ],
 });
@@ -705,30 +1000,70 @@ foam.CLASS({
       name: 'literal',
     },
   ],
+
+  methods: [
+    function outputWebIDL(o) {
+      o.out(this.literal);
+    },
+  ],
+});
+
+foam.CLASS({
+  package: 'foam.webidl',
+  name: 'Number',
+  extends: 'foam.webidl.Literal',
+
+  properties: [
+    {
+      class: 'Boolean',
+      name: 'isNegative',
+      value: false,
+    },
+  ],
+
+  methods: [
+    function outputWebIDL(o) {
+      if (this.isNegative) o.out('-');
+      this.SUPER(o);
+    },
+  ],
 });
 
 foam.CLASS({
   package: 'foam.webidl',
   name: 'DecInteger',
-  extends: 'foam.webidl.Literal',
+  extends: 'foam.webidl.Number',
 });
 
 foam.CLASS({
   package: 'foam.webidl',
   name: 'HexInteger',
-  extends: 'foam.webidl.Literal',
+  extends: 'foam.webidl.Number',
 });
 
 foam.CLASS({
   package: 'foam.webidl',
   name: 'OctInteger',
-  extends: 'foam.webidl.Literal',
+  extends: 'foam.webidl.Number',
+});
+
+foam.CLASS({
+  package: 'foam.webidl',
+  name: 'Infinity',
+  extends: 'foam.webidl.Number',
+
+  properties: [
+    {
+      name: 'literal',
+      value: 'Infinity',
+    },
+  ],
 });
 
 foam.CLASS({
   package: 'foam.webidl',
   name: 'Float',
-  extends: 'foam.webidl.Literal',
+  extends: 'foam.webidl.Number',
 });
 
 foam.CLASS({
@@ -743,8 +1078,8 @@ foam.CLASS({
   extends: 'foam.webidl.Literal',
 
   methods: [
-    function toWebIDL() {
-      return '"' + this.literal + '"';
+    function outputWebIDL(o) {
+      o.out('"', this.literal, '"');
     },
   ],
 });
@@ -758,19 +1093,6 @@ foam.CLASS({
     {
       name: 'literal',
       value: '[]',
-    },
-  ],
-});
-
-foam.CLASS({
-  package: 'foam.webidl',
-  name: 'Infinity',
-  extends: 'foam.webidl.Literal',
-
-  properties: [
-    {
-      class: 'Boolean',
-      name: 'isNegative',
     },
   ],
 });

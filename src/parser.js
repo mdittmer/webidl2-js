@@ -59,6 +59,7 @@ foam.CLASS({
     'foam.webidl.Infinity',
     'foam.webidl.Interface',
     'foam.webidl.Iterable',
+    'foam.webidl.Literal',
     'foam.webidl.MapLike',
     'foam.webidl.Member',
     'foam.webidl.MemberData',
@@ -104,16 +105,20 @@ foam.CLASS({
           az: range('a', 'z'),
 
           // Common tokens.
-          integer: str(seq(
+          integer: seq(
             sym('om'),
             alt(
-              str(seq(range('1', '9'), sym('r09'))),
-              str(seq('0', alt('X', 'x'), str(plus(alt(
-                range('0', '9'), range('A', 'F'), range('a', 'f')))))),
-              str(seq('0', str(repeat(range('0', '7')))))
+              sym('dec'),
+              sym('hex'),
+              sym('oct')
             )
-          )),
-          float: str(seq(
+          ),
+          dec: str(seq(range('1', '9'), sym('r09'))),
+          hex: str(seq('0', alt('X', 'x'), str(plus(alt(
+            range('0', '9'), range('A', 'F'), range('a', 'f')
+          ))))),
+          oct: str(seq('0', str(repeat(range('0', '7'))))),
+          float: seq(
             sym('om'),
             alt(
               str(seq(
@@ -127,7 +132,7 @@ foam.CLASS({
               )),
               str(seq(sym('p09'), sym('Ee'), sym('opm'), sym('p09')))
             )
-          )),
+          ),
 
           // TODO: This has been relaxed to parse identifiers like "__content" in
           // Gecko's IDL. It should be /_?[A-Za-z][0-9A-Z_a-z-]*/.
@@ -224,7 +229,7 @@ foam.CLASS({
             'enum', sym('identifier'), '{', sym('EnumValueList'), '}',
             sym('SemiColon')
           ),
-          EnumValueList: tplus(sym('string'), ','),
+          EnumValueList: trepeat(sym('string'), ','),
 
           // Typedefs.
           Typedef: tseq(
@@ -319,8 +324,7 @@ foam.CLASS({
           // SerializationPatternList. We just include all of them here
           // (which is technically too permissive).
           SerializationPatternInner: optional(alt(
-            // seq below: Produces ['getter'] consistent wit IdentifierList.
-            seq('getter'), sym('IdentifierList')
+            'getter', sym('IdentifierList')
           )),
           // NOTE: "ReturnType" in spec.
           ReadOnlyAttributeRestOrOperation: alt(
@@ -352,8 +356,9 @@ foam.CLASS({
           ),
           RequiredArgument: tseq(sym('Type'), sym('Ellipsis'), sym('ArgumentName')),
           Default: optional(tseq1(
-            1, '=', alt(sym('ConstValue'), sym('string'), tseq('[', ']'))
+            1, '=', alt(sym('ConstValue'), sym('string'), sym('ArrayValue'))
           )),
+          ArrayValue: tseq('[', ']'),
           // NOTE: Should be (ArgumentNameKeyword|identifier); we leave dealing with
           // keywords to semantic actions.
           ArgumentName: sym('identifier'),
@@ -524,7 +529,7 @@ foam.CLASS({
           },
           Dictionary: function(v) {
             return parser.Dictionary.create({
-              name: v[0],
+              name: v[1],
               inheritsFrom: v[2],
               members: v[4],
             });
@@ -590,6 +595,7 @@ foam.CLASS({
             return v;
           },
           Serializer: function(v) {
+            if (v === ';') return parser.Serializer.create();
             return parser.Operation.isInstance(v) ?
               parser.Serializer.create({operation: v}) :
               parser.Serializer.create({pattern: v});
@@ -631,11 +637,30 @@ foam.CLASS({
             return null;
           },
           SerializationPattern: function(v) {
-            return parser.SerializerPattern.create({
-              type: v[0] === '{' ? parser.SerializerPatternType.MAP :
-                parser.SerializerPatternType.ARRAY,
-              parts: v[1],
-            });
+            // Special case: String "getter" is the whole map/array inner
+            // pattern.
+            if (v[1] === 'getter')
+              v[1] = [parser.Literal.create({literal: v[1]})];
+
+            if (v[0] === '{') {
+              // Map pattern.
+              return parser.SerializerPattern.create({
+                type: parser.SerializerPatternType.MAP,
+                parts: v[1] || [],
+              });
+            } else if (v[0] === '[') {
+              // Array pattern.
+              return parser.SerializerPattern.create({
+                type: parser.SerializerPatternType.ARRAY,
+                parts: v[1] || [],
+              });
+            } else {
+              // Identifier pattern.
+              return parser.SerializerPattern.create({
+                type: parser.SerializerPatternType.IDENTIFIER,
+                parts: [v],
+              });
+            }
           },
           AttributeRest: function(v) {
             return parser.Attribute.create({type: v[1], name: v[2]});
@@ -664,18 +689,16 @@ foam.CLASS({
                 {type: v[0], name: v[2], isVariadic: true}
             );
           },
-          Default: function(v) {
-            if (v === null) return null;
-            return v;
+          ArrayValue: function() {
+            return parser.EmptyArray.create();
           },
-          ConstValueCornerCase: function(v) {
+          ConstValueCornerCase: function() {
             // TODO(markdittmer): No checks elsewhere turn
             // Identifier("Infinity") into Infinity.
             return parser.Infinity.create({isNegative: true});
           },
           UnionType: function(v) {
-            return v[3] === null ? parser.UnionType.create({types: v[1]}) :
-              parser.UnionType.create({types: v[1], params: v[3]});
+            return parser.UnionType.create({types: v[1], suffixes: v[3] || []});
           },
           ParameterizedType: function(v) {
             // Add params to existing NonUnionType.
@@ -691,8 +714,7 @@ foam.CLASS({
               );
           },
           BuiltInTypeName: function(v) {
-            if (v === null) return null;
-            return v.join(' ');
+            return parser.Literal.create({literal: v.join(' ')});
           },
           TypeSuffixes: function(v) {
             if (v === null) return null;
@@ -743,6 +765,25 @@ foam.CLASS({
           ExtendedAttributeNoArgs: function(v) {
             return parser.ExtendedAttributeNoArgs.create({name: v});
           },
+          integer: function(v) {
+            v[1].isNegative = v[0] === '-';
+            return v[1];
+          },
+          dec: function(v) {
+            return parser.DecInteger.create({literal: v});
+          },
+          hex: function(v) {
+            return parser.HexInteger.create({literal: v});
+          },
+          oct: function(v) {
+            return parser.OctInteger.create({literal: v});
+          },
+          float: function(v) {
+            return parser.Float.create({
+              isNegative: v[0] === '-',
+              literal: v[1],
+            });
+          },
           identifier: function(v) {
             return parser.Identifier.create({literal: v[0] + v[1]});
           },
@@ -792,6 +833,7 @@ foam.CLASS({
         for (var i = 0; i < v.length; i++) {
           var data = {attrs: v[i][0] || []};
           data[key] = v[i][1];
+          if (Ctor.create(data)[key].model_.id === 'foam.webidl.MemberData') debugger;
           ret.push(Ctor.create(data));
         }
         return ret;
