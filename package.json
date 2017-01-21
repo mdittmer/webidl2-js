@@ -4,7 +4,8 @@
   "description": "A parse for relaxed Web IDL 2. This parser originally followed the draft specification and has since been extended to afford common deviations from the spec.",
   "main": "src/parser.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "karma start ./config/karma.conf.js",
+    "test_node": "JASMINE_CONFIG_PATH=./config/jasmine.json jasmine"
   },
   "repository": {
     "type": "git",
@@ -23,6 +24,15 @@
     "extends": "google"
   },
   "dependencies": {
-    "foam2-experimental": "git://github.com/foam-framework/foam2-experimental.git#consumable"
+    "foam2-experimental": "git://github.com/foam-framework/foam2-experimental.git"
+  },
+  "devDependencies": {
+    "jasmine": "^2.5.2",
+    "jasmine-core": "^2.5.2",
+    "karma": "^1.3.0",
+    "karma-chrome-launcher": "^2.0.0",
+    "karma-jasmine": "^1.1.0",
+    "karma-webpack": "^1.8.1",
+    "webidl2": "git://github.com/w3c/webidl2.js.git"
   }
 }
