@@ -48,3 +48,17 @@ foam.CLASS({
     },
   ],
 });
+
+foam.CLASS({
+  refines: 'foam.parse.ParserWithAction',
+
+  methods: [
+    function parse(ps, obj) {
+      var start = ps.pos;
+      ps = this.p.parse(ps, obj);
+      return ps ?
+        ps.setValue(this.action(ps.value, start, ps.pos)) :
+        undefined;
+    },
+  ],
+});
