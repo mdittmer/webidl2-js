@@ -8,28 +8,32 @@ const FOAM_DIR = `${__dirname}/../node_modules/foam2-experimental`;
 execSync(`node ${FOAM_DIR}/tools/build.js web`);
 
 const basePath = `${__dirname}/../test`;
+const deps = ['../node_modules/foam2-experimental/foam-bin.js'];
 const entries = [
+  '../src/diff.js',
   '../src/outputer.js',
   '../src/parser.js',
   '../test/browser/webidl2.js',
 ];
-const files = [
-  '../node_modules/foam2-experimental/foam-bin.js',
-].concat(entries).concat([
+const helpers = [
   'any/**/*-helper*.js',
   'browser/**/*-helper*.js',
+];
+const units = [
   'any/**/*-test*.js',
   'browser/**/*-test*.js',
+];
+const integrations = [
   'any/**/*-integration*.js',
   'browser/**/*-integration*.js',
-]);
+];
 const reporters = ['progress'];
 const preprocessors = entries.reduce((acc, key) => {
   acc[key] = ['webpack'];
   return acc;
 }, {});
 
-module.exports = function(config) {
+function configurator(config) {
   config.set({
     // base path that will be used to resolve all patterns (eg. files, exclude)
     basePath,
@@ -39,7 +43,7 @@ module.exports = function(config) {
     frameworks: ['jasmine'],
 
     // list of files / patterns to load in the browser
-    files,
+    files: deps,
 
     // test results reporter to use
     // possible values: 'dots', 'progress'
@@ -79,3 +83,11 @@ module.exports = function(config) {
     concurrency: Infinity,
   });
 };
+
+configurator.deps = deps;
+configurator.entries = entries;
+configurator.helpers = helpers;
+configurator.units = units;
+configurator.integrations = integrations;
+
+module.exports = configurator;

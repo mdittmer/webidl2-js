@@ -4,7 +4,10 @@
   "description": "A parse for relaxed Web IDL 2. This parser originally followed the draft specification and has since been extended to afford common deviations from the spec.",
   "main": "src/parser.js",
   "scripts": {
-    "test": "karma start ./config/karma.conf.js",
+    "test": "karma start ./config/karma.all.conf.js",
+    "test_unit": "karma start ./config/karma.unit.conf.js",
+    "test_integration": "karma start ./config/karma.integration.conf.js",
+    "test_dev": "karma start ./config/karma.dev.conf.js",
     "test_node": "JASMINE_CONFIG_PATH=./config/jasmine.json jasmine"
   },
   "repository": {
