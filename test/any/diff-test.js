@@ -104,15 +104,15 @@ describe('diff', function() {
   });
   it('should add foo: null for ({}, {foo: null})', function() {
     expect(diff({}, {foo: null}))
-     .toFOAMEqual([
-      DC({type: DT.ADD, revPath: ['foo'], value: null})
-    ]);
+      .toFOAMEqual([
+        DC({type: DT.ADD, revPath: ['foo'], value: null})
+      ]);
   });
   it('should remove foo: null for ({foo: null}, {})', function() {
     expect(diff({foo: null}, {}))
-     .toFOAMEqual([
-      DC({type: DT.REMOVE, revPath: ['foo'], value: null}),
-    ]);
+      .toFOAMEqual([
+        DC({type: DT.REMOVE, revPath: ['foo'], value: null}),
+      ]);
   });
   it(
     'should remove foo: null and add foo: false for ({foo: null}, {foo: false})',
@@ -230,9 +230,9 @@ describe('diff', function() {
       },
     ];
     expect(diff(a1, a2)).toFOAMEqual([
-        DC({type: DT.ADD, revPath: ['0'], value: null}),
-        DC({type: DT.ADD, revPath: ['charlie', '1'], value: true}),
-        DC({type: DT.REMOVE, revPath: ['1'], value: a1[1]}),
+      DC({type: DT.ADD, revPath: ['0'], value: null}),
+      DC({type: DT.ADD, revPath: ['charlie', '1'], value: true}),
+      DC({type: DT.REMOVE, revPath: ['1'], value: a1[1]}),
     ]);
   });
 });
