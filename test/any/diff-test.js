@@ -19,7 +19,6 @@
 describe('diff', function() {
   var DT = foam.diff.DiffType;
   var DC = foam.diff.DiffChunk.create.bind(foam.diff.DiffChunk);
-  var equals = foam.util.equals.bind(foam.util);
   var differ = foam.diff.Differ.create();
   var diff = differ.structuredDiff.bind(differ);
   it('should have no diff for (undefined, undefined)', function() {
@@ -29,99 +28,99 @@ describe('diff', function() {
     expect(diff(null, null)).toEqual([]);
   });
   it('should add null for (undefined, null)', function() {
-    expect(equals(diff(undefined, null), [DC({type: DT.ADD, value: null})]))
-      .toBe(true);
+    expect(diff(undefined, null))
+      .toFOAMEqual([DC({type: DT.ADD, value: null})]);
   });
   it('should remove null for (null, undefined)', function() {
-    expect(equals(diff(null, undefined), [DC({type: DT.REMOVE, value: null})]))
-      .toBe(true);
+    expect(diff(null, undefined))
+      .toFOAMEqual([DC({type: DT.REMOVE, value: null})]);
   });
   it('should add 0 for (undefined, 0)', function() {
-    expect(equals(diff(undefined, 0), [DC({type: DT.ADD, value: 0})]))
-      .toBe(true);
+    expect(diff(undefined, 0))
+      .toFOAMEqual([DC({type: DT.ADD, value: 0})]);
   });
   it('should remove 0 for (0, undefined)', function() {
-    expect(equals(diff(0, undefined), [DC({type: DT.REMOVE, value: 0})]))
-      .toBe(true);
+    expect(diff(0, undefined))
+      .toFOAMEqual([DC({type: DT.REMOVE, value: 0})]);
   });
   it('should add 1 for (undefined, 1)', function() {
-    expect(equals(diff(undefined, 1), [DC({type: DT.ADD, value: 1})]))
-      .toBe(true);
+    expect(diff(undefined, 1))
+      .toFOAMEqual([DC({type: DT.ADD, value: 1})]);
   });
   it('should remove 1 for (1, undefined)', function() {
-    expect(equals(diff(1, undefined), [DC({type: DT.REMOVE, value: 1})]))
-      .toBe(true);
+    expect(diff(1, undefined))
+      .toFOAMEqual([DC({type: DT.REMOVE, value: 1})]);
   });
   it('should add 1 for (null, 1)', function() {
-    expect(equals(diff(null, 1), [
+    expect(diff(null, 1)).toFOAMEqual([
       DC({type: DT.REMOVE, value: null}),
       DC({type: DT.ADD, value: 1}),
-    ])).toBe(true);
+    ]);
   });
   it('should remove 1 for (1, null)', function() {
-    expect(equals(diff(1, null), [
+    expect(diff(1, null)).toFOAMEqual([
       DC({type: DT.REMOVE, value: 1}),
       DC({type: DT.ADD, value: null}),
-    ])).toBe(true);
+    ]);
   });
   it('should add false for (null, false)', function() {
-    expect(equals(diff(null, false), [
+    expect(diff(null, false)).toFOAMEqual([
       DC({type: DT.REMOVE, value: null}),
       DC({type: DT.ADD, value: false}),
-    ])).toBe(true);
+    ]);
   });
   it('should remove false for (false, null)', function() {
-    expect(equals(diff(false, null), [
+    expect(diff(false, null)).toFOAMEqual([
       DC({type: DT.REMOVE, value: false}),
       DC({type: DT.ADD, value: null}),
-    ])).toBe(true);
+    ]);
   });
   it('should add \'\' for (null, \'\')', function() {
-    expect(equals(diff(null, ''), [
+    expect(diff(null, '')).toFOAMEqual([
       DC({type: DT.REMOVE, value: null}),
       DC({type: DT.ADD, value: ''}),
-    ])).toBe(true);
+    ]);
   });
   it('should remove \'\' for (\'\', null)', function() {
-    expect(equals(diff('', null), [
+    expect(diff('', null)).toFOAMEqual([
       DC({type: DT.REMOVE, value: ''}),
       DC({type: DT.ADD, value: null}),
-    ])).toBe(true);
+    ]);
   });
   it('should add \'foo\' for (null, \'foo\')', function() {
-    expect(equals(diff(null, 'foo'), [
+    expect(diff(null, 'foo')).toFOAMEqual([
       DC({type: DT.REMOVE, value: null}),
       DC({type: DT.ADD, value: 'foo'}),
-    ])).toBe(true);
+    ]);
   });
   it('should remove \'foo\' for (\'foo\', null)', function() {
-    expect(equals(diff('foo', null), [
+    expect(diff('foo', null)).toFOAMEqual([
       DC({type: DT.REMOVE, value: 'foo'}),
       DC({type: DT.ADD, value: null}),
-    ])).toBe(true);
+    ]);
   });
   it('should be no diff for ({}, {})', function() {
-    expect(equals(diff({}, {}), [])).toBe(true);
+    expect(diff({}, {})).toFOAMEqual([]);
   });
   it('should add foo: null for ({}, {foo: null})', function() {
-    expect(equals(diff({}, {foo: null}), [
+    expect(diff({}, {foo: null}))
+     .toFOAMEqual([
       DC({type: DT.ADD, revPath: ['foo'], value: null})
-    ]))
-     .toBe(true);
+    ]);
   });
   it('should remove foo: null for ({foo: null}, {})', function() {
-    expect(equals(diff({foo: null}, {}), [
+    expect(diff({foo: null}, {}))
+     .toFOAMEqual([
       DC({type: DT.REMOVE, revPath: ['foo'], value: null}),
-    ]))
-     .toBe(true);
+    ]);
   });
   it(
     'should remove foo: null and add foo: false for ({foo: null}, {foo: false})',
     function() {
-      expect(equals(diff({foo: null}, {foo: false}), [
+      expect(diff({foo: null}, {foo: false})).toFOAMEqual([
         DC({type: DT.REMOVE, revPath: ['foo'], value: null}),
         DC({type: DT.ADD, revPath: ['foo'], value: false}),
-      ])).toBe(true);
+      ]);
     }
   );
   it(
@@ -142,7 +141,7 @@ describe('diff', function() {
         }
       };
       var o2 = JSON.parse(JSON.stringify(o1));
-      expect(equals(diff(o1, o2), [])).toBe(true);
+      expect(diff(o1, o2)).toFOAMEqual([]);
     }
   );
   it(
@@ -177,38 +176,63 @@ describe('diff', function() {
         },
         india: india,
       };
-      expect(equals(diff(o1, o2), [
+      expect(diff(o1, o2)).toFOAMEqual([
         DC({type: DT.REMOVE, revPath: ['charlie', 'beta', 'alpha'], value: true}),
         DC({type: DT.ADD, revPath: ['charlie', 'alpha'], value: newCharlie}),
         DC({type: DT.REMOVE, revPath: ['golf', 'foxtrot', 'epsilon'], value: 0}),
         DC({type: DT.ADD, revPath: ['golf', 'foxtrot', 'epsilon'], value: null}),
         DC({type: DT.REMOVE, revPath: ['hotel', 'epsilon'], value: 1}),
         DC({type: DT.ADD, revPath: ['india'], value: india}),
-      ])).toBe(true);
+      ]);
     }
   );
   it('should be no diff for ([], [])', function() {
-    expect(equals(diff([], []), [])).toBe(true);
+    expect(diff([], [])).toFOAMEqual([]);
   });
   it('should add 0: \'foo\' to diff for ([], [\'foo\'])', function() {
-    expect(equals(diff([], ['foo']), [
+    expect(diff([], ['foo'])).toFOAMEqual([
       DC({type: DT.ADD, revPath: ['0'], value: 'foo'}),
-    ])).toBe(true);
+    ]);
   });
   it('should remove 0: \'foo\' to diff for ([\'foo\'], [])', function() {
-    expect(equals(diff(['foo'], []), [
+    expect(diff(['foo'], [])).toFOAMEqual([
       DC({type: DT.REMOVE, revPath: ['0'], value: 'foo'}),
-    ])).toBe(true);
+    ]);
   });
   it('should remove 0: \'foo\' to diff for ([\'foo\'], [])', function() {
-    expect(equals(diff(['foo'], []), [
+    expect(diff(['foo'], [])).toFOAMEqual([
       DC({type: DT.REMOVE, revPath: ['0'], value: 'foo'}),
-    ])).toBe(true);
+    ]);
   });
   it('should align diff for ([0, 1], [1, 2])', function() {
-    expect(equals(diff([0, 1], [1, 2]), [
+    expect(diff([0, 1], [1, 2])).toFOAMEqual([
       DC({type: DT.REMOVE, revPath: ['0'], value: 0}),
       DC({type: DT.ADD, revPath: ['1'], value: 2}),
-    ])).toBe(true);
+    ]);
+  });
+  it('should align diff arrays containing objects', function() {
+    var a1 = [
+      {
+        alpha: 1,
+        beta: 2,
+      },
+      {
+        yankee: 3,
+        zulu: 4,
+      },
+    ];
+    var a2 = [
+      null,
+      {
+        alpha: 1,
+        beta: 2,
+        charlie: true,
+      },
+    ];
+    expect(diff(a1, a2)).toFOAMEqual([
+        DC({type: DT.ADD, revPath: ['0'], value: null}),
+        DC({type: DT.ADD, revPath: ['charlie', '1'], value: true}),
+        DC({type: DT.REMOVE, revPath: ['1'], value: a1[1]}),
+    ]);
   });
 });
