@@ -455,6 +455,7 @@ foam.CLASS({
           foam.Boolean,
           foam.Number,
           foam.String,
+          foam.Function,
         ];
       },
     },
