@@ -330,20 +330,21 @@ foam.CLASS({
     function getArrayKey2() {
       return this.arrayKeys2.getKey();
     },
-
     function updateArrayBest(newBest) {
       // New best is not better if:
       // (1) Current best is better than new best
       // (2) New best stopped parsing early.
-      if ((this.best !== null && newBest.current >= this.best.current) // ||
-          // newBest.getArrayKey1() !== undefined ||
-          // newBest.getArrayKey2() !== undefined
-         )
+      if ((this.best !== null && newBest.current >= this.best.current))
         return this;
 
       var state = this.clone();
       state.best = newBest;
 
+      return state;
+    },
+    function resetArrayBest() {
+      var state = this.clone();
+      state.best = null;
       return state;
     },
 
@@ -657,7 +658,7 @@ foam.CLASS({
         this.getPropertyNames(a, state),
         this.getPropertyNames(b, state),
         this.differ.statefulStructuredDiff.bind(this.differ, a, b)
-      ).best;
+      ).best.resetArrayBest();
     },
   ],
 });
@@ -753,8 +754,7 @@ foam.CLASS({
         state = state.updateArrayBest(next);
       }
 
-      // TODO(markdittmer): Do we need this guard?
-      return state.best !== null ? state.best : state;
+      return state.best;
     },
   ],
 });

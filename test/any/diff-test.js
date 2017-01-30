@@ -21,6 +21,7 @@ describe('diff', function() {
   var DC = foam.diff.DiffChunk.create.bind(foam.diff.DiffChunk);
   var differ = foam.diff.Differ.create();
   var diff = differ.structuredDiff.bind(differ);
+
   it('should have no diff for (undefined, undefined)', function() {
     expect(diff(undefined, undefined)).toEqual([]);
   });
@@ -233,6 +234,51 @@ describe('diff', function() {
       DC({type: DT.ADD, revPath: ['0'], value: null}),
       DC({type: DT.ADD, revPath: ['charlie', '1'], value: true}),
       DC({type: DT.REMOVE, revPath: ['1'], value: a1[1]}),
+    ]);
+  });
+  it('should align diff nested arrays', function() {
+    var fooBarBaz = ['foo', 'bar', 'baz'];
+    var fooBaz = ['foo', 'baz'];
+    var a1 = [
+      fooBarBaz,
+      'quz',
+    ];
+    var a2 = [
+      fooBaz,
+      null,
+    ];
+    expect(diff(a1, a2)).toFOAMEqual([
+      DC({type: DT.REMOVE, revPath: ['1', '0'], value: 'bar'}),
+      DC({type: DT.REMOVE, revPath: ['1'], value: 'quz'}),
+      DC({type: DT.ADD, revPath: ['1'], value: null}),
+    ]);
+
+    a1 = [
+      'quz',
+      fooBarBaz,
+    ];
+    a2 = [
+      fooBaz,
+      null,
+    ];
+    expect(diff(a1, a2)).toFOAMEqual([
+      DC({type: DT.REMOVE, revPath: ['0'], value: 'quz'}),
+      DC({type: DT.REMOVE, revPath: ['1', '1'], value: 'bar'}),
+      DC({type: DT.ADD, revPath: ['1'], value: null}),
+    ]);
+
+    a1 = [
+      'quz',
+      fooBaz,
+    ];
+    a2 = [
+      fooBarBaz,
+      null,
+    ];
+    expect(diff(a1, a2)).toFOAMEqual([
+      DC({type: DT.REMOVE, revPath: ['0'], value: 'quz'}),
+      DC({type: DT.ADD, revPath: ['1', '0'], value: 'bar'}),
+      DC({type: DT.ADD, revPath: ['1'], value: null}),
     ]);
   });
 });
