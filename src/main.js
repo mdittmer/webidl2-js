@@ -20,11 +20,11 @@ require('./diff.js');
 require('./parser.js');
 require('./outputer.js');
 
-var differ = foam.webidl.Differ.create();
+var differ = foam.diff.Differ.create();
 var diff = differ.structuredDiff.bind(differ);
 
 module.exports = {
-  Differ: foam.webidl.Differ,
+  Differ: foam.diff.Differ,
   Outputer: foam.webidl.Outputer,
   Parser: foam.webidl.Parser,
   diff: diff,
