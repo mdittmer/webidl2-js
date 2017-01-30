@@ -2,7 +2,7 @@
   "name": "webidl2-js",
   "version": "0.0.1",
   "description": "A parse for relaxed Web IDL 2. This parser originally followed the draft specification and has since been extended to afford common deviations from the spec.",
-  "main": "src/parser.js",
+  "main": "src/main.js",
   "scripts": {
     "test": "karma start ./config/karma.all.conf.js",
     "test_unit": "karma start ./config/karma.unit.conf.js",

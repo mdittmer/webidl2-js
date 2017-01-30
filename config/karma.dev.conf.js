@@ -7,8 +7,7 @@ module.exports = function(config) {
       .concat(base.entries)
       .concat(base.helpers)
       .concat(base.units)
-      // .concat(base.integrations)
-    ,
+      .concat(base.integrations),
     singleRun: false,
     autoWatch: true,
   });

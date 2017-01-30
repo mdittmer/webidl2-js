@@ -6,7 +6,7 @@ module.exports = function(config) {
     files: base.deps
       .concat(base.entries)
       .concat(base.helpers)
-      .concat(base.unit)
+      .concat(base.units)
       .concat(base.integrations),
   });
 };
