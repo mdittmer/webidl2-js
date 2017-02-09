@@ -57,7 +57,7 @@ foam.CLASS({
   methods: [
     function describe() {
       var path = this.revPath.slice(0).reverse().join('.');
-      console.log(this.type.label + ' at ' + path + ' with value ', this.value);
+      console.log(this.type.label + ' at ' + path + ' with value', foam.json.objectify(this.value));
     },
   ],
 });
@@ -165,9 +165,14 @@ foam.CLASS({
       if (!this.isValid()) return this;
 
       var state = this.clone();
+      state.arrayKeys1 = state.arrayKeys2 = null;
       state.objectKeys = this.Keys.create({keys: keys});
 
       var next = f(state);
+      next.arrayKeys1 = this.arrayKeys1 !== null ?
+        this.arrayKeys1.clone() : null;
+      next.arrayKeys2 = this.arrayKeys2 !== null ?
+        this.arrayKeys2.clone() : null;
       next.objectKeys = this.objectKeys !== null ?
         this.objectKeys.clone() : null;
 
@@ -230,10 +235,13 @@ foam.CLASS({
       if (!this.isValid()) return this;
 
       var state = this.clone();
+      state.objectKeys = null;
       state.arrayKeys1 = this.Keys.create({keys: keys1});
       state.arrayKeys2 = this.Keys.create({keys: keys2});
 
       var next = f(state);
+      next.objectKeys = this.objectKeys !== null ?
+        this.objectKeys.clone() : null;
       next.arrayKeys1 = this.arrayKeys1 !== null ?
         this.arrayKeys1.clone() : null;
       next.arrayKeys2 = this.arrayKeys2 !== null ?
@@ -580,6 +588,74 @@ foam.CLASS({
 
 foam.CLASS({
   package: 'foam.diff',
+  name: 'FObject',
+  extends: 'foam.diff.ObjectLike',
+
+  axioms: [
+    foam.pattern.Singleton.create(),
+  ],
+
+  requires: [
+    'foam.diff.ObjectKey',
+    'foam.diff.DiffChunk',
+    'foam.diff.DiffType',
+  ],
+
+  properties: [
+    {
+      name: 'keyType',
+      factory: function() {
+        return this.ObjectKey.create();
+      },
+    },
+  ],
+
+  methods: [
+    function isInstance(o, state) {
+      return foam.core.FObject.isInstance(o) && !state.hasObjectKeys();
+    },
+    function getPropertyNames(o, state) {
+      var props = o.cls_.getAxiomsByClass(foam.core.Property);
+      var names = new Array(props.length);
+      for (var i = 0; i < props.length; i++) {
+        names[i] = props[i].name;
+      }
+      return names;
+    },
+    function statefulStructuredDiff(a, b, state) {
+      return state.withObjectKeys(
+        this.dedupKeys(
+          this.getPropertyNames(a, state), this.getPropertyNames(b, state)
+        ),
+        this.differ.statefulStructuredDiff.bind(this.differ, a, b)
+      );
+    },
+    function dedupKeys(a, b) {
+      a = a.sort();
+      b = b.sort();
+      var keys = [];
+      var i = 0;
+      var j = 0;
+      while (i < a.length || j < b.length) {
+        if (a[i] === b[j]) {
+          keys.push(a[i]);
+          i++;
+          j++;
+        } else if (b[j] === undefined || a[i] < b[j]) {
+          keys.push(a[i]);
+          i++;
+        } else {
+          keys.push(b[j]);
+          j++;
+        }
+      }
+      return keys;
+    },
+  ],
+});
+
+foam.CLASS({
+  package: 'foam.diff',
   name: 'KeyLike',
   extends: 'foam.diff.Type',
 
@@ -608,7 +684,9 @@ foam.CLASS({
 
   methods: [
     function isInstance(o, state) {
-      return foam.typeOf(o) === foam.Object && state.hasObjectKeys();
+      return (foam.typeOf(o) === foam.Object ||
+          foam.core.FObject.isInstance(o)) &&
+        state.hasObjectKeys();
     },
     function statefulStructuredDiff(a, b, state) {
       var key = state.getObjectKey();
@@ -658,7 +736,7 @@ foam.CLASS({
         this.getPropertyNames(a, state),
         this.getPropertyNames(b, state),
         this.differ.statefulStructuredDiff.bind(this.differ, a, b)
-      ).best.resetArrayBest();
+      ).resetArrayBest();
     },
   ],
 });
@@ -689,7 +767,6 @@ foam.CLASS({
       // Reached end of both arrays.
       if (aKey === undefined && bKey === undefined)
         return state.updateArrayBest(state);
-
 
       if (aKey !== undefined && bKey !== undefined) {
         // First (inner call):
@@ -771,6 +848,7 @@ foam.CLASS({
     'foam.diff.Undefined',
     'foam.diff.Primitive',
     'foam.diff.Object',
+    'foam.diff.FObject',
     'foam.diff.ObjectKey',
     'foam.diff.Array',
     'foam.diff.ArrayKey',
@@ -787,6 +865,7 @@ foam.CLASS({
           this.Undefined.create(),
           this.Primitive.create(),
           this.Object.create(),
+          this.FObject.create(),
           this.ObjectKey.create(),
           this.Array.create(),
           this.ArrayKey.create(),
